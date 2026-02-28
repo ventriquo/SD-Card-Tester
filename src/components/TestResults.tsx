@@ -6,9 +6,10 @@ interface TestResultsProps {
   drive: DriveInfo;
   result: TestResult;
   onReset: () => void;
+  onExport: () => void;
 }
 
-export function TestResults({ drive, result, onReset }: TestResultsProps) {
+export function TestResults({ drive, result, onReset, onExport }: TestResultsProps) {
   const isFake = !result.isGenuine;
 
   return (

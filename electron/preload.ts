@@ -1,0 +1,66 @@
+import { contextBridge, ipcRenderer } from 'electron';
+import type { DriveInfo, TestConfig, TestProgress, TestResult } from '../src/types';
+
+// Expose protected methods that allow the renderer process to use
+// the ipcRenderer without exposing the entire object
+contextBridge.exposeInMainWorld('electronAPI', {
+  // Drive operations
+  getDrives: (): Promise<DriveInfo[]> => ipcRenderer.invoke('get-drives'),
+  startDriveWatch: (): Promise<void> => ipcRenderer.invoke('start-drive-watch'),
+  stopDriveWatch: (): Promise<void> => ipcRenderer.invoke('stop-drive-watch'),
+
+  // Test operations
+  startTest: (config: TestConfig): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('start-test', config),
+  stopTest: (): Promise<{ success: boolean }> => ipcRenderer.invoke('stop-test'),
+  pauseTest: (): Promise<{ success: boolean }> => ipcRenderer.invoke('pause-test'),
+  resumeTest: (): Promise<{ success: boolean }> => ipcRenderer.invoke('resume-test'),
+
+  // Export
+  exportReport: (report: TestResult): Promise<{ success: boolean; path?: string }> =>
+    ipcRenderer.invoke('export-report', report),
+
+  // App info
+  getVersion: (): Promise<string> => ipcRenderer.invoke('get-version'),
+
+  // Event listeners
+  onDrivesUpdated: (callback: (drives: DriveInfo[]) => void) => {
+    ipcRenderer.on('drives-updated', (_, drives) => callback(drives));
+  },
+  onTestProgress: (callback: (data: TestProgress) => void) => {
+    ipcRenderer.on('test-progress', (_, data) => callback(data));
+  },
+  onTestCompleted: (callback: (result: TestResult) => void) => {
+    ipcRenderer.on('test-completed', (_, result) => callback(result));
+  },
+  onTestError: (callback: (error: string) => void) => {
+    ipcRenderer.on('test-error', (_, error) => callback(error));
+  },
+
+  // Remove listeners
+  removeAllListeners: (channel: string) => {
+    ipcRenderer.removeAllListeners(channel);
+  },
+});
+
+// Type declaration for the exposed API
+declare global {
+  interface Window {
+    electronAPI: {
+      getDrives: () => Promise<DriveInfo[]>;
+      startDriveWatch: () => Promise<void>;
+      stopDriveWatch: () => Promise<void>;
+      startTest: (config: TestConfig) => Promise<{ success: boolean; error?: string }>;
+      stopTest: () => Promise<{ success: boolean }>;
+      pauseTest: () => Promise<{ success: boolean }>;
+      resumeTest: () => Promise<{ success: boolean }>;
+      exportReport: (report: TestResult) => Promise<{ success: boolean; path?: string }>;
+      getVersion: () => Promise<string>;
+      onDrivesUpdated: (callback: (drives: DriveInfo[]) => void) => void;
+      onTestProgress: (callback: (data: TestProgress) => void) => void;
+      onTestCompleted: (callback: (result: TestResult) => void) => void;
+      onTestError: (callback: (error: string) => void) => void;
+      removeAllListeners: (channel: string) => void;
+    };
+  }
+}

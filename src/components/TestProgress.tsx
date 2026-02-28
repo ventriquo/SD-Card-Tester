@@ -1,107 +1,67 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { Activity, HardDrive, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { DriveInfo, TestStats } from '../types';
+import { Activity, HardDrive, Clock, AlertCircle, CheckCircle2, Square, Pause, Play } from 'lucide-react';
+import { DriveInfo, TestProgress as TestProgressType } from '../types';
 
 interface TestProgressProps {
   drive: DriveInfo;
+  method: 'quick' | 'deep';
+  progress: TestProgressType | null;
+  error: string | null;
+  onStop: () => void;
   onComplete: (result: any) => void;
 }
 
-export function TestProgress({ drive, onComplete }: TestProgressProps) {
-  const [stats, setStats] = useState<TestStats>({
-    progress: 0,
-    writeSpeed: 0,
-    readSpeed: 0,
-    written: 0,
-    verified: 0,
-    errors: 0,
-    timeRemaining: drive.capacity * 10, // rough estimate
-  });
+export function TestProgress({ drive, method, progress, error, onStop }: TestProgressProps) {
+  const [isPaused, setIsPaused] = useState(false);
+  const [localHistory, setLocalHistory] = useState<{ time: string; write: number; read: number }[]>([]);
 
-  const [history, setHistory] = useState<{ time: string; write: number; read: number }[]>([]);
-  const [phase, setPhase] = useState<'writing' | 'reading' | 'finalizing'>('writing');
-
+  // Update local history when progress changes
   useEffect(() => {
-    let interval: number;
-    let currentProgress = 0;
-    let currentWritten = 0;
-    let currentVerified = 0;
-    let currentErrors = 0;
-
-    const simulateTest = () => {
-      interval = window.setInterval(() => {
-        setStats((prev) => {
-          const newProgress = prev.progress + (Math.random() * 0.5 + 0.1);
-          
-          if (newProgress >= 100) {
-            clearInterval(interval);
-            setTimeout(() => {
-              onComplete({
-                isGenuine: currentErrors === 0 && currentVerified > drive.capacity * 0.9,
-                actualCapacity: currentVerified,
-                claimedCapacity: drive.capacity,
-                errors: currentErrors,
-                averageWriteSpeed: 45.2,
-                averageReadSpeed: 85.4,
-                duration: 300,
-              });
-            }, 1000);
-            return { ...prev, progress: 100, timeRemaining: 0 };
-          }
-
-          const isWriting = newProgress < 50;
-          if (isWriting && phase !== 'writing') setPhase('writing');
-          if (!isWriting && phase !== 'reading') setPhase('reading');
-
-          const baseSpeed = isWriting ? 45 : 85;
-          const fluctuation = (Math.random() - 0.5) * 10;
-          const currentSpeed = Math.max(0, baseSpeed + fluctuation);
-
-          if (isWriting) {
-            currentWritten = (newProgress / 50) * drive.capacity;
-          } else {
-            currentVerified = ((newProgress - 50) / 50) * drive.capacity;
-            // Simulate fake drive errors if capacity > 32GB (just for demo)
-            if (drive.capacity > 32 && currentVerified > 32 && Math.random() > 0.95) {
-              currentErrors += Math.floor(Math.random() * 5) + 1;
-            }
-          }
-
-          const newHistoryPoint = {
-            time: new Date().toLocaleTimeString([], { hour12: false, minute: '2-digit', second: '2-digit' }),
-            write: isWriting ? currentSpeed : 0,
-            read: !isWriting ? currentSpeed : 0,
-          };
-
-          setHistory((h) => {
-            const newH = [...h, newHistoryPoint];
-            if (newH.length > 30) newH.shift();
-            return newH;
-          });
-
-          return {
-            progress: newProgress,
-            writeSpeed: isWriting ? currentSpeed : 0,
-            readSpeed: !isWriting ? currentSpeed : 0,
-            written: currentWritten,
-            verified: currentVerified,
-            errors: currentErrors,
-            timeRemaining: Math.max(0, Math.floor((100 - newProgress) * 3)),
-          };
-        });
-      }, 500);
-    };
-
-    simulateTest();
-    return () => clearInterval(interval);
-  }, [drive, onComplete, phase]);
+    if (progress?.history && progress.history.length > 0) {
+      const formatted = progress.history.slice(-30).map((h) => ({
+        time: new Date(h.timestamp).toLocaleTimeString([], { hour12: false, minute: '2-digit', second: '2-digit' }),
+        write: h.writeSpeed,
+        read: h.readSpeed,
+      }));
+      setLocalHistory(formatted);
+    }
+  }, [progress?.history]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const formatBytes = (bytes: number) => {
+    const gb = bytes / (1024 * 1024 * 1024);
+    return `${gb.toFixed(2)} GB`;
+  };
+
+  const getPhaseLabel = (phase: string) => {
+    switch (phase) {
+      case 'preparing':
+        return 'Preparing...';
+      case 'writing':
+        return method === 'quick' ? 'Testing Regions' : 'Writing Data';
+      case 'verifying':
+        return 'Verifying Data';
+      case 'finalizing':
+        return 'Finalizing...';
+      default:
+        return 'Testing...';
+    }
+  };
+
+  const handlePauseResume = async () => {
+    if (isPaused) {
+      await window.electronAPI?.resumeTest();
+    } else {
+      await window.electronAPI?.pauseTest();
+    }
+    setIsPaused(!isPaused);
   };
 
   return (
@@ -117,14 +77,29 @@ export function TestProgress({ drive, onComplete }: TestProgressProps) {
           <div className="absolute top-0 left-0 w-full h-1 bg-[var(--color-surface-hover)]">
             <div
               className={`h-full transition-all duration-300 ${
-                phase === 'writing' ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-success)]'
+                progress?.phase === 'writing' ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-success)]'
               }`}
-              style={{ width: `${stats.progress}%` }}
+              style={{ width: `${progress?.progress || 0}%` }}
             />
           </div>
 
-          <h3 className="text-lg font-semibold mb-8 text-[var(--color-text-muted)] uppercase tracking-widest">
-            {phase === 'writing' ? 'Writing Data' : 'Verifying Data'}
+          <div className="w-full flex items-center justify-between mb-4">
+            <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wider ${
+              method === 'quick' 
+                ? 'bg-[var(--color-primary)]/20 text-[var(--color-primary)]' 
+                : 'bg-[var(--color-success)]/20 text-[var(--color-success)]'
+            }`}>
+              {method === 'quick' ? 'Quick Scan' : 'Deep Scan'}
+            </span>
+            {error && (
+              <span className="px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wider bg-red-500/20 text-red-400">
+                Error
+              </span>
+            )}
+          </div>
+
+          <h3 className="text-lg font-semibold mb-8 text-[var(--color-text-muted)] uppercase tracking-widest text-center">
+            {getPhaseLabel(progress?.phase || 'preparing')}
           </h3>
 
           <div className="relative w-48 h-48 flex items-center justify-center mb-8">
@@ -142,16 +117,16 @@ export function TestProgress({ drive, onComplete }: TestProgressProps) {
                 cy="50"
                 r="45"
                 fill="none"
-                stroke={phase === 'writing' ? 'var(--color-primary)' : 'var(--color-success)'}
+                stroke={progress?.phase === 'writing' || progress?.phase === 'preparing' ? 'var(--color-primary)' : 'var(--color-success)'}
                 strokeWidth="4"
                 strokeLinecap="round"
                 strokeDasharray="283"
-                strokeDashoffset={283 - (283 * stats.progress) / 100}
-                className={phase === 'writing' ? 'drop-shadow-[0_0_8px_rgba(0,229,255,0.5)]' : 'drop-shadow-[0_0_8px_rgba(0,255,102,0.5)]'}
+                strokeDashoffset={283 - (283 * (progress?.progress || 0)) / 100}
+                className={progress?.phase === 'writing' || progress?.phase === 'preparing' ? 'drop-shadow-[0_0_8px_rgba(0,229,255,0.5)]' : 'drop-shadow-[0_0_8px_rgba(0,255,102,0.5)]'}
               />
             </svg>
             <div className="text-center">
-              <span className="text-4xl font-bold font-mono">{stats.progress.toFixed(1)}</span>
+              <span className="text-4xl font-bold font-mono">{(progress?.progress || 0).toFixed(1)}</span>
               <span className="text-xl text-[var(--color-text-muted)]">%</span>
             </div>
           </div>
@@ -159,13 +134,19 @@ export function TestProgress({ drive, onComplete }: TestProgressProps) {
           <div className="w-full grid grid-cols-2 gap-4 text-center">
             <div className="p-3 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)]">
               <p className="text-xs text-[var(--color-text-muted)] font-mono mb-1">WRITTEN</p>
-              <p className="font-semibold">{stats.written.toFixed(2)} GB</p>
+              <p className="font-semibold">{formatBytes(progress?.bytesWritten || 0)}</p>
             </div>
             <div className="p-3 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)]">
               <p className="text-xs text-[var(--color-text-muted)] font-mono mb-1">VERIFIED</p>
-              <p className="font-semibold">{stats.verified.toFixed(2)} GB</p>
+              <p className="font-semibold">{formatBytes(progress?.bytesVerified || 0)}</p>
             </div>
           </div>
+
+          {error && (
+            <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 w-full">
+              <p className="text-sm text-red-400 text-center">{error}</p>
+            </div>
+          )}
         </div>
 
         <div className="p-6 rounded-3xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xl flex items-center gap-4">
@@ -173,9 +154,27 @@ export function TestProgress({ drive, onComplete }: TestProgressProps) {
             <Clock className="w-6 h-6 text-[var(--color-primary)]" />
           </div>
           <div>
-            <p className="text-sm text-[var(--color-text-muted)] font-mono">EST. TIME REMAINING</p>
-            <p className="text-2xl font-bold font-mono">{formatTime(stats.timeRemaining)}</p>
+            <p className="text-sm text-[var(--color-text-muted)] font-mono uppercase">Est. Time Remaining</p>
+            <p className="text-2xl font-bold font-mono">{formatTime(progress?.timeRemaining || 0)}</p>
           </div>
+        </div>
+
+        {/* Control Buttons */}
+        <div className="grid grid-cols-2 gap-4">
+          <button
+            onClick={handlePauseResume}
+            className="flex items-center justify-center gap-2 py-3 rounded-xl font-semibold bg-[var(--color-surface-hover)] border border-[var(--color-border)] hover:bg-[var(--color-border)] transition-colors"
+          >
+            {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+            {isPaused ? 'Resume' : 'Pause'}
+          </button>
+          <button
+            onClick={onStop}
+            className="flex items-center justify-center gap-2 py-3 rounded-xl font-semibold bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors"
+          >
+            <Square className="w-4 h-4" fill="currentColor" />
+            Stop
+          </button>
         </div>
       </div>
 
@@ -190,18 +189,18 @@ export function TestProgress({ drive, onComplete }: TestProgressProps) {
             <div className="flex gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-[var(--color-primary)] glow-primary" />
-                <span className="text-sm font-mono">Write: {stats.writeSpeed.toFixed(1)} MB/s</span>
+                <span className="text-sm font-mono">Write: {(progress?.writeSpeed || 0).toFixed(1)} MB/s</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-[var(--color-success)] glow-success" />
-                <span className="text-sm font-mono">Read: {stats.readSpeed.toFixed(1)} MB/s</span>
+                <span className="text-sm font-mono">Read: {(progress?.readSpeed || 0).toFixed(1)} MB/s</span>
               </div>
             </div>
           </div>
 
           <div className="flex-1 min-h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={history} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+              <AreaChart data={localHistory} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorWrite" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.3} />
@@ -238,21 +237,23 @@ export function TestProgress({ drive, onComplete }: TestProgressProps) {
           </div>
 
           <div className={`p-6 rounded-3xl border shadow-xl flex items-center gap-4 transition-colors ${
-            stats.errors > 0 ? 'bg-red-500/10 border-red-500/30' : 'bg-[var(--color-surface)] border-[var(--color-border)]'
+            (progress?.errors || 0) > 0 ? 'bg-red-500/10 border-red-500/30' : 'bg-[var(--color-surface)] border-[var(--color-border)]'
           }`}>
             <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-              stats.errors > 0 ? 'bg-red-500/20' : 'bg-[var(--color-surface-hover)]'
+              (progress?.errors || 0) > 0 ? 'bg-red-500/20' : 'bg-[var(--color-surface-hover)]'
             }`}>
-              {stats.errors > 0 ? (
+              {(progress?.errors || 0) > 0 ? (
                 <AlertCircle className="w-6 h-6 text-[var(--color-danger)]" />
               ) : (
                 <CheckCircle2 className="w-6 h-6 text-[var(--color-success)]" />
               )}
             </div>
             <div>
-              <p className="text-sm text-[var(--color-text-muted)] font-mono uppercase">Errors Found</p>
-              <p className={`text-2xl font-bold font-mono ${stats.errors > 0 ? 'text-[var(--color-danger)]' : ''}`}>
-                {stats.errors}
+              <p className="text-sm text-[var(--color-text-muted)] font-mono uppercase">Errors</p>
+              <p className={`text-2xl font-bold font-mono ${
+                (progress?.errors || 0) > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'
+              }`}>
+                {progress?.errors || 0}
               </p>
             </div>
           </div>
