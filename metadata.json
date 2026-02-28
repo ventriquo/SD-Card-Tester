@@ -1,0 +1,5 @@
+{
+  "name": "MicroSD Validator",
+  "description": "A modern tool to verify the true capacity and health of MicroSD cards and USB drives.",
+  "requestFramePermissions": []
+}
