@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { Activity, HardDrive, Clock, AlertCircle, CheckCircle2, Square, Pause, Play } from 'lucide-react';
+import { Activity, HardDrive, Clock, AlertCircle, CheckCircle2, Square, Pause, Play, File } from 'lucide-react';
 import { DriveInfo, TestProgress as TestProgressType } from '../types';
+import { SectorMap } from './SectorMap';
 
 interface TestProgressProps {
   drive: DriveInfo;
@@ -223,6 +224,32 @@ export function TestProgress({ drive, method, progress, error, onStop }: TestPro
             </ResponsiveContainer>
           </div>
         </div>
+
+        {/* Sector Map Visualization */}
+        <SectorMap sectorMap={progress?.sectorMap} />
+
+        {/* H2testw-style File Progress */}
+        {progress?.totalFiles && progress.totalFiles > 0 && (
+          <div className="p-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <File className="w-4 h-4 text-[var(--color-primary)]" />
+                <span className="text-sm font-mono">H2testw File Progress</span>
+              </div>
+              <span className="text-sm font-mono text-[var(--color-text-muted)]">
+                {progress.currentFile || 0} / {progress.totalFiles} files
+              </span>
+            </div>
+            <div className="w-full h-2 bg-[var(--color-surface-hover)] rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-[var(--color-primary)]"
+                initial={{ width: 0 }}
+                animate={{ width: `${((progress.currentFile || 0) / progress.totalFiles) * 100}%` }}
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-6">
           <div className="p-6 rounded-3xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xl flex items-center gap-4">

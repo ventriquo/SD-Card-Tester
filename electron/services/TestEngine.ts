@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import fs from 'fs';
 import path from 'path';
-import type { TestConfig, TestProgress, TestResult, DriveInfo } from '../../src/types';
+import type { TestConfig, TestProgress, TestResult, DriveInfo, SectorMap, SectorStatus } from '../../src/types';
 
 type TestState = 'idle' | 'preparing' | 'writing' | 'verifying' | 'completed' | 'error' | 'paused';
 
@@ -35,6 +35,9 @@ export class TestEngine extends EventEmitter {
   private history: TestHistoryPoint[] = [];
   private abortController: AbortController | null = null;
   private testFilePath: string | null = null;
+  private sectorMap: SectorMap | null = null;
+  private currentFileNumber: number = 0;
+  private totalFileCount: number = 0;
 
   constructor() {
     super();
@@ -67,9 +70,12 @@ export class TestEngine extends EventEmitter {
       history: [],
     };
 
-    this.emit('progress', this.progress);
+      this.emit('progress', this.progress);
 
     try {
+      // Initialize sector map based on drive capacity
+      this.initializeSectorMap();
+
       if (config.method === 'quick') {
         await this.runQuickTest();
       } else {
@@ -526,5 +532,60 @@ export class TestEngine extends EventEmitter {
 
   getProgress(): TestProgress {
     return this.progress;
+  }
+
+  // Sector Map Methods for H2testw-style visualization
+  private initializeSectorMap(): void {
+    if (!this.drive) return;
+    
+    // Create a sector map with reasonable granularity
+    // For visualization purposes, we'll use ~512 sectors
+    const totalSectors = 512;
+    const sectorSize = (this.drive.capacity * 1024 * 1024 * 1024) / totalSectors;
+    
+    this.sectorMap = {
+      totalSectors,
+      sectorSize,
+      sectors: new Array(totalSectors).fill('pending'),
+      lastUpdated: Date.now(),
+    };
+    
+    this.progress.sectorMap = this.sectorMap;
+  }
+
+  private updateSectorStatus(startByte: number, endByte: number, status: SectorStatus): void {
+    if (!this.sectorMap) return;
+    
+    const startSector = Math.floor(startByte / this.sectorMap.sectorSize);
+    const endSector = Math.floor(endByte / this.sectorMap.sectorSize);
+    
+    for (let i = startSector; i <= endSector && i < this.sectorMap.totalSectors; i++) {
+      this.sectorMap.sectors[i] = status;
+    }
+    
+    this.sectorMap.lastUpdated = Date.now();
+    this.progress.sectorMap = { ...this.sectorMap };
+  }
+
+  private updateSectorByIndex(sectorIndex: number, status: SectorStatus): void {
+    if (!this.sectorMap || sectorIndex < 0 || sectorIndex >= this.sectorMap.totalSectors) return;
+    
+    this.sectorMap.sectors[sectorIndex] = status;
+    this.sectorMap.lastUpdated = Date.now();
+    this.progress.sectorMap = { ...this.sectorMap };
+  }
+
+  // H2testw-style file naming
+  private getH2testwFileName(fileNumber: number): string {
+    // H2testw uses: 1.h2w, 2.h2w, etc.
+    return `${fileNumber}.h2w`;
+  }
+
+  // Update file progress for H2testw-style testing
+  private updateFileProgress(current: number, total: number): void {
+    this.currentFileNumber = current;
+    this.totalFileCount = total;
+    this.progress.currentFile = current;
+    this.progress.totalFiles = total;
   }
 }

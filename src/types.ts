@@ -67,6 +67,16 @@ export interface TestConfig {
   };
 }
 
+// Sector status for visual map
+export type SectorStatus = 'pending' | 'writing' | 'verifying' | 'validated' | 'writeError' | 'readError' | 'corrupt' | 'noStorage';
+
+export interface SectorMap {
+  totalSectors: number;
+  sectorSize: number; // bytes per sector
+  sectors: SectorStatus[];
+  lastUpdated: number;
+}
+
 // Real-time test progress
 export interface TestProgress {
   phase: 'preparing' | 'writing' | 'verifying' | 'finalizing';
@@ -84,6 +94,11 @@ export interface TestProgress {
     writeSpeed: number;
     readSpeed: number;
   }[];
+  // H2testw-style sector map
+  sectorMap?: SectorMap;
+  // H2testw-style file progress
+  currentFile?: number;
+  totalFiles?: number;
 }
 
 // Test history entry for database
