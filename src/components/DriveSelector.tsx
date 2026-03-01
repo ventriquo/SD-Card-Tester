@@ -170,12 +170,12 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
           
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            disabled={isLoading || drives.length === 0}
+            disabled={isLoading || (drives.length === 0 && !dummyDrive)}
             className={`w-full flex items-center justify-between p-5 rounded-2xl border transition-all duration-300 ${
               isDropdownOpen
                 ? 'border-[var(--color-primary)] bg-[var(--color-surface-hover)] glow-primary'
                 : 'border-[var(--color-border)] bg-[var(--color-surface-hover)] hover:border-[var(--color-text-muted)]'
-            } ${(isLoading || drives.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+            } ${(isLoading || (drives.length === 0 && !dummyDrive)) ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {selectedDrive ? (
               <div className="flex items-center gap-4">
@@ -191,7 +191,7 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
               </div>
             ) : (
               <span className="text-lg text-[var(--color-text-muted)] pl-2">
-                {isLoading ? 'Scanning for drives...' : drives.length === 0 ? 'No drives detected' : 'Select a drive to test...'}
+                {isLoading ? 'Scanning for drives...' : (drives.length === 0 && !dummyDrive) ? 'No drives detected' : 'Select a drive to test...'}
               </span>
             )}
             <ChevronDown
