@@ -77,6 +77,8 @@ declare global {
       exportHistory: (format: 'json' | 'csv') => Promise<string | null>;
       deleteHistoryEntry: (id: string) => Promise<boolean>;
       clearHistory: () => Promise<void>;
+      // CID
+      readCID: (drivePath: string) => Promise<{ cid: CIDInfo | null; warning?: string }>;
       // Event listeners
       onDrivesUpdated: (callback: (drives: DriveInfo[]) => void) => void;
       onTestProgress: (callback: (data: TestProgress) => void) => void;

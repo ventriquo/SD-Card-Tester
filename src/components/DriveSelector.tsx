@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { HardDrive, Usb, CheckCircle2, AlertTriangle, ChevronDown, Play, RefreshCw, Bug } from 'lucide-react';
+import { HardDrive, Usb, CheckCircle2, AlertTriangle, ChevronDown, Play, RefreshCw, Bug, Shield, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { DriveInfo } from '../types';
+import type { CIDInfo } from '../../electron/services/CIDReader';
 
 interface DriveSelectorProps {
   onStartTest: (drive: DriveInfo, method: 'quick' | 'deep') => void;
@@ -16,6 +17,11 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // CID state
+  const [cidInfo, setCidInfo] = useState<CIDInfo | null>(null);
+  const [cidWarning, setCidWarning] = useState<string | null>(null);
+  const [isLoadingCID, setIsLoadingCID] = useState(false);
 
   useEffect(() => {
     // Load drives on mount
@@ -54,6 +60,33 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const fetchCID = async (drive: DriveInfo) => {
+    if (!drive?.path) return;
+    
+    setIsLoadingCID(true);
+    setCidInfo(null);
+    setCidWarning(null);
+    
+    try {
+      const result = await window.electronAPI?.readCID?.(drive.path);
+      if (result) {
+        setCidInfo(result.cid);
+        setCidWarning(result.warning || null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch CID:', err);
+      setCidWarning('Unable to read card identification. Manufacturer verification unavailable.');
+    } finally {
+      setIsLoadingCID(false);
+    }
+  };
+
+  const handleSelectDrive = (drive: DriveInfo) => {
+    setSelectedDrive(drive);
+    setIsDropdownOpen(false);
+    fetchCID(drive);
   };
 
   const getDriveIcon = (type: DriveInfo['type']) => {
@@ -210,10 +243,7 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
               {/* Debug/Dummy Drive */}
               {dummyDrive && (
                 <button
-                  onClick={() => {
-                    setSelectedDrive(dummyDrive);
-                    setIsDropdownOpen(false);
-                  }}
+                  onClick={() => handleSelectDrive(dummyDrive)}
                   className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-[var(--color-primary)]/10 transition-colors text-left border border-[var(--color-primary)]/30 mb-2"
                 >
                   <div className="w-10 h-10 rounded-lg bg-[var(--color-primary)]/20 flex items-center justify-center border border-[var(--color-primary)]/50">
@@ -235,10 +265,7 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
               {drives.map((drive) => (
                 <button
                   key={drive.id}
-                  onClick={() => {
-                    setSelectedDrive(drive);
-                    setIsDropdownOpen(false);
-                  }}
+                  onClick={() => handleSelectDrive(drive)}
                   className="w-full flex items-center gap-4 p-4 rounded-xl hover:bg-[var(--color-surface-hover)] transition-colors text-left"
                 >
                   <div className="w-10 h-10 rounded-lg bg-[var(--color-bg)] flex items-center justify-center border border-[var(--color-border)]">
@@ -261,10 +288,75 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
           )}
         </div>
 
-        {error && (
-          <div className="mb-8 p-4 rounded-2xl bg-red-500/10 border border-red-500/20">
-            <p className="text-sm text-red-400">{error}</p>
+        {/* CID Info Display */}
+        {selectedDrive && (
+          <div className="mb-6">
+            {isLoadingCID ? (
+              <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
+                <div className="animate-spin w-4 h-4 border-2 border-[var(--color-primary)] border-t-transparent rounded-full" />
+                Reading manufacturer info...
+              </div>
+            ) : cidInfo ? (
+              <div className={`p-4 rounded-2xl border ${
+                cidInfo.isGenuine
+                  ? 'bg-green-500/10 border-green-500/30'
+                  : 'bg-amber-500/10 border-amber-500/30'
+              }`}>
+                <div className="flex items-start gap-3">
+                  {cidInfo.isGenuine ? (
+                    <ShieldCheck className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <ShieldAlert className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`font-semibold ${cidInfo.isGenuine ? 'text-green-400' : 'text-amber-400'}`}>
+                        {cidInfo.isGenuine ? 'Verified' : 'Unknown'} Manufacturer
+                      </span>
+                      {cidInfo.manufacturer && (
+                        <span className="text-[var(--color-text)]">
+                          {cidInfo.manufacturer.name}
+                        </span>
+                      )}
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        cidInfo.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
+                        cidInfo.confidence === 'medium' ? 'bg-blue-500/20 text-blue-400' :
+                        'bg-amber-500/20 text-amber-400'
+                      }`}>
+                        {cidInfo.confidence} confidence
+                      </span>
+                    </div>
+                    {cidInfo.pnm && cidInfo.pnm !== 'Unknown' && (
+                      <p className="text-sm text-[var(--color-text-muted)] mt-1">
+                        Model: {cidInfo.pnm}
+                      </p>
+                    )}
+                    {cidInfo.mdt && cidInfo.mdt !== '????-??' && (
+                      <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                        Manufactured: {cidInfo.mdt}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : cidWarning ? (
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+                <div className="flex items-start gap-3">
+                  <Shield className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-amber-400 font-medium">Limited Verification</p>
+                    <p className="text-sm text-[var(--color-text-muted)] mt-1">{cidWarning}</p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
+        )}
+
+        {error && (
+        <div className="mb-8 p-4 rounded-2xl bg-red-500/10 border border-red-500/20">
+          <p className="text-sm text-red-400">{error}</p>
+        </div>
         )}
 
         {selectedDrive && (
