@@ -1,11 +1,12 @@
-import { Activity, Settings, HardDrive, Bug } from 'lucide-react';
+import { Activity, Settings, HardDrive, Bug, History } from 'lucide-react';
 import { getSettings } from './Settings';
 
 interface HeaderProps {
   onSettingsClick: () => void;
+  onHistoryClick: () => void;
 }
 
-export function Header({ onSettingsClick }: HeaderProps) {
+export function Header({ onSettingsClick, onHistoryClick }: HeaderProps) {
   const settings = getSettings();
   
   return (
@@ -35,7 +36,14 @@ export function Header({ onSettingsClick }: HeaderProps) {
           <HardDrive className="w-4 h-4 text-[var(--color-text-muted)]" />
           <span className="text-xs font-mono text-[var(--color-text-muted)]">SYSTEM: OK</span>
         </div>
-        <button 
+        <button
+          onClick={onHistoryClick}
+          className="p-2 rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors text-[var(--color-text-muted)] hover:text-white"
+          title="Test History"
+        >
+          <History className="w-5 h-5" />
+        </button>
+        <button
           onClick={onSettingsClick}
           className="p-2 rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors text-[var(--color-text-muted)] hover:text-white"
           title="Settings"

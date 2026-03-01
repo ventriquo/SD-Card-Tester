@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { DriveInfo, TestConfig, TestProgress, TestResult } from '../src/types';
+import type { HistoryEntry, HistoryStats } from './services/HistoryStore';
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -19,6 +20,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Export
   exportReport: (report: TestResult): Promise<{ success: boolean; path?: string }> =>
     ipcRenderer.invoke('export-report', report),
+
+  // History operations
+  getHistory: (): Promise<HistoryEntry[]> => ipcRenderer.invoke('get-history'),
+  getHistoryStats: (): Promise<HistoryStats | null> => ipcRenderer.invoke('get-history-stats'),
+  searchHistory: (query: string): Promise<HistoryEntry[]> => ipcRenderer.invoke('search-history', query),
+  exportHistory: (format: 'json' | 'csv'): Promise<string | null> => ipcRenderer.invoke('export-history', format),
+  deleteHistoryEntry: (id: string): Promise<boolean> => ipcRenderer.invoke('delete-history-entry', id),
+  clearHistory: (): Promise<void> => ipcRenderer.invoke('clear-history'),
 
   // App info
   getVersion: (): Promise<string> => ipcRenderer.invoke('get-version'),
@@ -56,6 +65,14 @@ declare global {
       resumeTest: () => Promise<{ success: boolean }>;
       exportReport: (report: TestResult) => Promise<{ success: boolean; path?: string }>;
       getVersion: () => Promise<string>;
+      // History
+      getHistory: () => Promise<HistoryEntry[]>;
+      getHistoryStats: () => Promise<HistoryStats | null>;
+      searchHistory: (query: string) => Promise<HistoryEntry[]>;
+      exportHistory: (format: 'json' | 'csv') => Promise<string | null>;
+      deleteHistoryEntry: (id: string) => Promise<boolean>;
+      clearHistory: () => Promise<void>;
+      // Event listeners
       onDrivesUpdated: (callback: (drives: DriveInfo[]) => void) => void;
       onTestProgress: (callback: (data: TestProgress) => void) => void;
       onTestCompleted: (callback: (result: TestResult) => void) => void;

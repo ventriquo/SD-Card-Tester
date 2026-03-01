@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { DriveScanner } from './services/DriveScanner';
 import { TestEngine } from './services/TestEngine';
+import { HistoryStore } from './services/HistoryStore';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -169,6 +170,31 @@ function setupIpcHandlers() {
   // Get app version
   ipcMain.handle('get-version', () => {
     return app.getVersion();
+  });
+
+  // History handlers
+  ipcMain.handle('get-history', async () => {
+    return HistoryStore.loadHistory();
+  });
+
+  ipcMain.handle('get-history-stats', async () => {
+    return HistoryStore.getStats();
+  });
+
+  ipcMain.handle('search-history', async (_, query: string) => {
+    return HistoryStore.search(query);
+  });
+
+  ipcMain.handle('export-history', async (_, format: 'json' | 'csv') => {
+    return HistoryStore.exportHistory(format);
+  });
+
+  ipcMain.handle('delete-history-entry', async (_, id: string) => {
+    return HistoryStore.deleteEntry(id);
+  });
+
+  ipcMain.handle('clear-history', async () => {
+    return HistoryStore.clearHistory();
   });
 }
 

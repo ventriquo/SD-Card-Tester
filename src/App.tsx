@@ -5,6 +5,7 @@ import { DriveSelector } from './components/DriveSelector';
 import { TestProgress } from './components/TestProgress';
 import { TestResults } from './components/TestResults';
 import { Settings, getSettings } from './components/Settings';
+import { History } from './components/History';
 import { DriveInfo, TestResult, TestState, TestProgress as TestProgressType, SectorStatus } from './types';
 
 // Dummy drive for debug mode
@@ -28,6 +29,7 @@ export default function App() {
   const [testProgress, setTestProgress] = useState<TestProgressType | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [debugMode, setDebugMode] = useState(false);
   const [simulationProgress, setSimulationProgress] = useState<TestProgressType | null>(null);
 
@@ -244,7 +246,10 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-grid flex flex-col">
-      <Header onSettingsClick={() => setIsSettingsOpen(true)} />
+      <Header
+        onSettingsClick={() => setIsSettingsOpen(true)}
+        onHistoryClick={() => setIsHistoryOpen(true)}
+      />
       
       <main className="flex-1 flex flex-col items-center justify-center p-6 relative z-0">
         <AnimatePresence mode="wait">
@@ -286,6 +291,9 @@ export default function App() {
 
       {/* Settings Modal */}
       <Settings isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+
+      {/* History Modal */}
+      <History isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
 
       {/* Ambient background glow */}
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[var(--color-primary)]/5 rounded-full blur-[150px] pointer-events-none -z-10" />
