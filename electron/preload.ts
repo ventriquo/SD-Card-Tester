@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { DriveInfo, TestConfig, TestProgress, TestResult } from '../src/types';
 import type { HistoryEntry, HistoryStats } from './services/HistoryStore';
+import type { CIDInfo } from './services/CIDReader';
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -28,6 +29,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportHistory: (format: 'json' | 'csv'): Promise<string | null> => ipcRenderer.invoke('export-history', format),
   deleteHistoryEntry: (id: string): Promise<boolean> => ipcRenderer.invoke('delete-history-entry', id),
   clearHistory: (): Promise<void> => ipcRenderer.invoke('clear-history'),
+
+  // CID operations
+  readCID: (drivePath: string): Promise<{ cid: CIDInfo | null; warning?: string }> =>
+    ipcRenderer.invoke('read-cid', drivePath),
 
   // App info
   getVersion: (): Promise<string> => ipcRenderer.invoke('get-version'),

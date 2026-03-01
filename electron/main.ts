@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { DriveScanner } from './services/DriveScanner';
 import { TestEngine } from './services/TestEngine';
 import { HistoryStore } from './services/HistoryStore';
+import { CIDReader } from './services/CIDReader';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -195,6 +196,15 @@ function setupIpcHandlers() {
 
   ipcMain.handle('clear-history', async () => {
     return HistoryStore.clearHistory();
+  });
+
+  // CID handler
+  ipcMain.handle('read-cid', async (_, drivePath: string) => {
+    const result = await CIDReader.readCID(drivePath);
+    return {
+      cid: result.cid,
+      warning: result.warning,
+    };
   });
 }
 
