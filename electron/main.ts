@@ -198,6 +198,11 @@ function setupIpcHandlers() {
     return HistoryStore.clearHistory();
   });
 
+  // Save test result to history
+  ipcMain.handle('save-test-result', async (_, { results, driveInfo, testType, manufacturer, model, notes }) => {
+    return HistoryStore.saveTestResult(results, driveInfo, testType, manufacturer, model, notes);
+  });
+
   // CID handler
   ipcMain.handle('read-cid', async (_, drivePath: string) => {
     const result = await CIDReader.readCID(drivePath);

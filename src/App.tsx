@@ -138,6 +138,9 @@ export default function App() {
         setTestResult(result);
         setTestState('results');
         setSimulationProgress(null);
+        
+        // Save to history
+        saveTestResultToHistory(result, selectedDrive, testMethod);
       }
     }, updateInterval);
 
@@ -216,12 +219,36 @@ export default function App() {
     setSimulationProgress(null);
   }, [debugMode]);
 
+  const saveTestResultToHistory = useCallback(async (result: TestResult, drive: DriveInfo, method: 'quick' | 'deep') => {
+    try {
+      await window.electronAPI?.saveTestResult?.({
+        results: result,
+        driveInfo: {
+          name: drive.name,
+          label: drive.filesystem,
+          capacity: drive.capacity * 1024 * 1024 * 1024, // Convert GB to bytes
+        },
+        testType: method,
+        manufacturer: drive.manufacturer,
+        model: drive.serialNumber,
+      });
+      console.log('Test result saved to history');
+    } catch (error) {
+      console.error('Failed to save test result to history:', error);
+    }
+  }, []);
+
   const handleTestComplete = useCallback((result: TestResult) => {
     setTestResult(result);
     setTestState('results');
     setTestProgress(null);
     setSimulationProgress(null);
-  }, []);
+    
+    // Save to history if we have the drive info
+    if (selectedDrive) {
+      saveTestResultToHistory(result, selectedDrive, testMethod);
+    }
+  }, [selectedDrive, testMethod, saveTestResultToHistory]);
 
   const handleReset = useCallback(() => {
     setTestState('idle');

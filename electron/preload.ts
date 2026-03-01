@@ -29,6 +29,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportHistory: (format: 'json' | 'csv'): Promise<string | null> => ipcRenderer.invoke('export-history', format),
   deleteHistoryEntry: (id: string): Promise<boolean> => ipcRenderer.invoke('delete-history-entry', id),
   clearHistory: (): Promise<void> => ipcRenderer.invoke('clear-history'),
+  saveTestResult: (data: {
+    results: TestResult;
+    driveInfo: { name: string; label?: string; capacity: number };
+    testType: 'quick' | 'deep' | 'h2testw';
+    manufacturer?: string;
+    model?: string;
+    notes?: string;
+  }): Promise<HistoryEntry> => ipcRenderer.invoke('save-test-result', data),
 
   // CID operations
   readCID: (drivePath: string): Promise<{ cid: CIDInfo | null; warning?: string }> =>
@@ -77,6 +85,14 @@ declare global {
       exportHistory: (format: 'json' | 'csv') => Promise<string | null>;
       deleteHistoryEntry: (id: string) => Promise<boolean>;
       clearHistory: () => Promise<void>;
+      saveTestResult: (data: {
+        results: TestResult;
+        driveInfo: { name: string; label?: string; capacity: number };
+        testType: 'quick' | 'deep' | 'h2testw';
+        manufacturer?: string;
+        model?: string;
+        notes?: string;
+      }) => Promise<HistoryEntry>;
       // CID
       readCID: (drivePath: string) => Promise<{ cid: CIDInfo | null; warning?: string }>;
       // Event listeners
