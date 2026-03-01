@@ -62,35 +62,35 @@ export function SectorMap({ sectorMap, compact = false }: SectorMapProps) {
 
   if (!sectorMap) {
     return (
-      <div className={`rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] p-4 ${compact ? 'h-48' : 'h-64'} flex items-center justify-center`}>
-        <p className="text-[var(--color-text-muted)] text-sm">Sector map initializing...</p>
+      <div className={`rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] p-6 ${compact ? 'h-48' : 'h-80'} flex items-center justify-center`}>
+        <p className="text-[var(--color-text-muted)] text-base">Sector map initializing...</p>
       </div>
     );
   }
 
   const { cols, displaySectors } = gridConfig;
-  const sectorSize = compact ? 3 : 4;
-  const gap = 1;
+  const sectorSize = compact ? 4 : 8;
+  const gap = 2;
 
   return (
-    <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] p-4">
+    <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] p-6">
       {/* Header with stats */}
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-[var(--color-text)]">Sector Map</h3>
-        <div className="flex gap-3 text-xs">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-base font-semibold text-[var(--color-text)]">Sector Map</h3>
+        <div className="flex gap-4 text-sm">
           {stats && (
             <>
-              <span className="flex items-center gap-1">
-                <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: STATUS_COLORS.validated }} />
+              <span className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded" style={{ backgroundColor: STATUS_COLORS.validated }} />
                 {stats.validated || 0}
               </span>
-              <span className="flex items-center gap-1">
-                <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: STATUS_COLORS.pending }} />
+              <span className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded" style={{ backgroundColor: STATUS_COLORS.pending }} />
                 {stats.pending || 0}
               </span>
               {(stats.writeError || stats.readError || stats.corrupt) > 0 && (
-                <span className="flex items-center gap-1 text-red-400">
-                  <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: STATUS_COLORS.writeError }} />
+                <span className="flex items-center gap-1.5 text-red-400">
+                  <div className="w-3 h-3 rounded" style={{ backgroundColor: STATUS_COLORS.writeError }} />
                   {(stats.writeError || 0) + (stats.readError || 0) + (stats.corrupt || 0)}
                 </span>
               )}
@@ -100,8 +100,8 @@ export function SectorMap({ sectorMap, compact = false }: SectorMapProps) {
       </div>
 
       {/* Sector Grid */}
-      <div 
-        className="overflow-auto max-h-48 rounded-lg bg-[var(--color-bg)] p-2"
+      <div
+        className="overflow-auto max-h-80 rounded-lg bg-[var(--color-bg)] p-3"
         style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${cols}, ${sectorSize}px)`,
@@ -115,13 +115,13 @@ export function SectorMap({ sectorMap, compact = false }: SectorMapProps) {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ duration: 0.1, delay: index * 0.0001 }}
-            className="rounded-[1px]"
+            className="rounded-[2px]"
             style={{
               width: sectorSize,
               height: sectorSize,
               backgroundColor: STATUS_COLORS[status],
-              boxShadow: status === 'writing' || status === 'verifying' 
-                ? `0 0 ${compact ? 2 : 4}px ${STATUS_COLORS[status]}` 
+              boxShadow: status === 'writing' || status === 'verifying'
+                ? `0 0 ${compact ? 3 : 6}px ${STATUS_COLORS[status]}`
                 : 'none',
             }}
             title={`Sector ${index + 1}: ${STATUS_LABELS[status]}`}
@@ -130,13 +130,13 @@ export function SectorMap({ sectorMap, compact = false }: SectorMapProps) {
       </div>
 
       {/* Legend */}
-      <div className="mt-3 flex flex-wrap gap-2 text-xs">
+      <div className="mt-4 flex flex-wrap gap-3 text-sm">
         {(['validated', 'writing', 'verifying', 'writeError', 'readError', 'corrupt', 'pending'] as SectorStatus[])
           .filter(status => stats?.[status] && stats[status] > 0)
           .map(status => (
-            <div key={status} className="flex items-center gap-1">
-              <div 
-                className="w-3 h-3 rounded-[1px]"
+            <div key={status} className="flex items-center gap-1.5">
+              <div
+                className="w-4 h-4 rounded-[2px]"
                 style={{ backgroundColor: STATUS_COLORS[status] }}
               />
               <span className="text-[var(--color-text-muted)]">{STATUS_LABELS[status]}</span>
