@@ -1,6 +1,8 @@
 import { motion } from 'motion/react';
 import { CheckCircle2, XCircle, AlertTriangle, RotateCcw, Download, HardDrive } from 'lucide-react';
 import { DriveInfo, TestResult } from '../types';
+import { t } from '../i18n';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface TestResultsProps {
   drive: DriveInfo;
@@ -10,6 +12,7 @@ interface TestResultsProps {
 }
 
 export function TestResults({ drive, result, onReset, onExport }: TestResultsProps) {
+  const { language } = useLanguage();
   const isFake = !result.isGenuine;
 
   return (
@@ -46,12 +49,12 @@ export function TestResults({ drive, result, onReset, onExport }: TestResultsPro
           <h2 className={`text-4xl font-bold tracking-tight mb-3 ${
             isFake ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'
           }`}>
-            {isFake ? 'FAKE CAPACITY DETECTED' : 'DRIVE IS GENUINE'}
+            {isFake ? t('fakeCard', language) : t('genuineCard', language)}
           </h2>
           <p className="text-[var(--color-text-muted)] max-w-lg mx-auto">
             {isFake 
-              ? `This drive claims to be ${result.claimedCapacity}GB, but only ${result.actualCapacity.toFixed(1)}GB is usable. Data written beyond this point will be lost or corrupted.`
-              : `The drive successfully passed all read/write tests. The full capacity of ${result.claimedCapacity}GB is usable and healthy.`}
+              ? `${t('claimedCapacity', language)}: ${result.claimedCapacity}GB, ${t('actualCapacity', language)}: ${result.actualCapacity.toFixed(1)}GB. ${t('dataLossWarning', language)}`
+              : `${t('testComplete', language)}. ${t('capacity', language)}: ${result.claimedCapacity}GB`}
           </p>
         </div>
 
@@ -59,11 +62,11 @@ export function TestResults({ drive, result, onReset, onExport }: TestResultsPro
           <div className="p-6 rounded-2xl bg-[var(--color-bg)] border border-[var(--color-border)]">
             <div className="flex items-center gap-3 mb-4">
               <HardDrive className="w-5 h-5 text-[var(--color-text-muted)]" />
-              <h3 className="font-semibold text-sm uppercase tracking-wider text-[var(--color-text-muted)]">Drive Info</h3>
+              <h3 className="font-semibold text-sm uppercase tracking-wider text-[var(--color-text-muted)]">{t('targetDrive', language)}</h3>
             </div>
             <div className="space-y-3 font-mono text-sm">
               <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">Name:</span>
+                <span className="text-[var(--color-text-muted)]">{t('manufacturer', language)}:</span>
                 <span className="text-right truncate max-w-[150px]">{drive.name}</span>
               </div>
               <div className="flex justify-between">
@@ -71,11 +74,11 @@ export function TestResults({ drive, result, onReset, onExport }: TestResultsPro
                 <span>{drive.path}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">Claimed Capacity:</span>
+                <span className="text-[var(--color-text-muted)]">{t('claimedCapacity', language)}:</span>
                 <span>{result.claimedCapacity} GB</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">Actual Capacity:</span>
+                <span className="text-[var(--color-text-muted)]">{t('actualCapacity', language)}:</span>
                 <span className={isFake ? 'text-[var(--color-danger)] font-bold' : 'text-[var(--color-success)] font-bold'}>
                   {result.actualCapacity.toFixed(1)} GB
                 </span>
@@ -86,25 +89,25 @@ export function TestResults({ drive, result, onReset, onExport }: TestResultsPro
           <div className="p-6 rounded-2xl bg-[var(--color-bg)] border border-[var(--color-border)]">
             <div className="flex items-center gap-3 mb-4">
               <AlertTriangle className="w-5 h-5 text-[var(--color-text-muted)]" />
-              <h3 className="font-semibold text-sm uppercase tracking-wider text-[var(--color-text-muted)]">Test Stats</h3>
+              <h3 className="font-semibold text-sm uppercase tracking-wider text-[var(--color-text-muted)]">{t('testOptions', language)}</h3>
             </div>
             <div className="space-y-3 font-mono text-sm">
               <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">Errors Found:</span>
+                <span className="text-[var(--color-text-muted)]">{t('errorsFound', language)}:</span>
                 <span className={result.errors > 0 ? 'text-[var(--color-danger)] font-bold' : 'text-[var(--color-success)]'}>
                   {result.errors}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">Avg Write Speed:</span>
+                <span className="text-[var(--color-text-muted)]">{t('averageWriteSpeed', language)}:</span>
                 <span>{result.averageWriteSpeed.toFixed(1)} MB/s</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">Avg Read Speed:</span>
+                <span className="text-[var(--color-text-muted)]">{t('averageReadSpeed', language)}:</span>
                 <span>{result.averageReadSpeed.toFixed(1)} MB/s</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">Test Duration:</span>
+                <span className="text-[var(--color-text-muted)]">{t('testDuration', language)}:</span>
                 <span>{Math.floor(result.duration / 60)}m {result.duration % 60}s</span>
               </div>
             </div>
@@ -117,11 +120,11 @@ export function TestResults({ drive, result, onReset, onExport }: TestResultsPro
             className="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl font-semibold bg-[var(--color-surface-hover)] border border-[var(--color-border)] hover:bg-[var(--color-border)] transition-colors"
           >
             <RotateCcw className="w-5 h-5" />
-            Test Another Drive
+            {t('runAnotherTest', language)}
           </button>
           <button className="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl font-semibold bg-[var(--color-primary)] text-black hover:bg-[#00cce6] glow-primary transition-all">
             <Download className="w-5 h-5" />
-            Export Report
+            {t('exportReport', language)}
           </button>
         </div>
       </div>

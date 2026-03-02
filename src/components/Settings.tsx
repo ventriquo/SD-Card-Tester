@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Settings2, Bug, Database, Languages, HardDrive } from 'lucide-react';
+import { t } from '../i18n';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface SettingsProps {
   isOpen: boolean;
@@ -12,6 +14,7 @@ interface AppSettings {
   defaultTestMethod: 'quick' | 'deep' | 'h2testw';
   language: 'en' | 'id';
   showDriveLabels: boolean;
+  showAllDrives: boolean;
 }
 
 const defaultSettings: AppSettings = {
@@ -19,17 +22,24 @@ const defaultSettings: AppSettings = {
   defaultTestMethod: 'quick',
   language: 'en',
   showDriveLabels: true,
+  showAllDrives: false,
 };
 
 export function Settings({ isOpen, onClose }: SettingsProps) {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const { language, setLanguage } = useLanguage();
 
   // Load settings from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('sd-card-tester-settings');
     if (saved) {
       try {
-        setSettings({ ...defaultSettings, ...JSON.parse(saved) });
+        const parsed = JSON.parse(saved);
+        setSettings({ ...defaultSettings, ...parsed });
+        // Sync language with context
+        if (parsed.language && parsed.language !== language) {
+          setLanguage(parsed.language as 'en' | 'id');
+        }
       } catch {
         console.error('Failed to parse settings');
       }
@@ -41,6 +51,11 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
     const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
     localStorage.setItem('sd-card-tester-settings', JSON.stringify(newSettings));
+    
+    // Update language context if language changed
+    if (key === 'language') {
+      setLanguage(value as 'en' | 'id');
+    }
     
     // Dispatch event to notify other components
     window.dispatchEvent(new CustomEvent('settings-changed', { detail: newSettings }));
@@ -74,8 +89,8 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                     <Settings2 className="w-5 h-5 text-[var(--color-primary)]" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold">Settings</h2>
-                    <p className="text-sm text-[var(--color-text-muted)]">Configure app behavior</p>
+                    <h2 className="text-lg font-semibold">{t('settings', language)}</h2>
+                    <p className="text-sm text-[var(--color-text-muted)]">{t('settingsDescription', language)}</p>
                   </div>
                 </div>
                 <button
@@ -88,11 +103,51 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
 
               {/* Settings Content */}
               <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
+                {/* Drive Display Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
+                    <HardDrive className="w-4 h-4" />
+                    <h3 className="text-sm font-semibold uppercase tracking-wider">
+                      {language === 'id' ? 'Tampilan Drive' : 'Drive Display'}
+                    </h3>
+                  </div>
+                  
+                  <div className="p-4 rounded-2xl bg-[var(--color-bg)] border border-[var(--color-border)]">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={settings.showAllDrives}
+                        onChange={(e) => updateSetting('showAllDrives', e.target.checked)}
+                        className="mt-1 w-4 h-4 rounded border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                      />
+                      <div>
+                        <p className="font-medium">
+                          {language === 'id' ? 'Tampilkan Semua Drive' : 'Show All Drives'}
+                        </p>
+                        <p className="text-sm text-[var(--color-text-muted)] mt-1">
+                          {language === 'id' 
+                            ? 'Secara default hanya drive yang dapat dilepas (SD card, USB) yang ditampilkan. Aktifkan ini untuk menampilkan semua drive termasuk drive internal.'
+                            : 'By default only removable drives (SD cards, USB) are shown. Enable this to show all drives including internal drives.'}
+                        </p>
+                        {!settings.showAllDrives && (
+                          <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                            <p className="text-sm text-amber-400">
+                              {language === 'id' 
+                                ? 'Hanya drive yang dapat dilepas ditampilkan'
+                                : 'Only removable drives shown'}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
                 {/* Debug Mode Section */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-[var(--color-primary)]">
                     <Bug className="w-4 h-4" />
-                    <h3 className="text-sm font-semibold uppercase tracking-wider">Debug Mode</h3>
+                    <h3 className="text-sm font-semibold uppercase tracking-wider">{t('dangerZone', language)}</h3>
                   </div>
                   
                   <div className="p-4 rounded-2xl bg-[var(--color-bg)] border border-[var(--color-border)]">
@@ -104,15 +159,16 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                         className="mt-1 w-4 h-4 rounded border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
                       />
                       <div>
-                        <p className="font-medium">Enable Simulation Mode</p>
+                        <p className="font-medium">{t('enableDebugMode', language)}</p>
                         <p className="text-sm text-[var(--color-text-muted)] mt-1">
-                          When enabled, a dummy test drive will appear and tests will run in simulation mode 
-                          without writing to actual disks. Perfect for UI testing and development.
+                          {t('debugModeDescription', language)}
                         </p>
                         {settings.debugMode && (
                           <div className="mt-3 p-3 rounded-xl bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/20">
                             <p className="text-sm text-[var(--color-primary)]">
-                              <strong>Debug Active:</strong> Look for "DUMMY-TEST-DRIVE" in the drive list
+                              {language === 'id' 
+                                ? 'Debug Aktif: Cari "DUMMY-TEST-DRIVE" di daftar drive'
+                                : 'Debug Active: Look for "DUMMY-TEST-DRIVE" in the drive list'}
                             </p>
                           </div>
                         )}
@@ -125,15 +181,15 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-[var(--color-success)]">
                     <Database className="w-4 h-4" />
-                    <h3 className="text-sm font-semibold uppercase tracking-wider">Default Test Method</h3>
+                    <h3 className="text-sm font-semibold uppercase tracking-wider">{t('defaultTestMode', language)}</h3>
                   </div>
                   
                   <div className="p-4 rounded-2xl bg-[var(--color-bg)] border border-[var(--color-border)]">
                     <div className="space-y-2">
                       {[
-                        { value: 'quick', label: 'Quick Scan', desc: 'Fast spot check (2-5 min)' },
-                        { value: 'deep', label: 'Deep Scan', desc: 'Full capacity test' },
-                        { value: 'h2testw', label: 'H2testw Style', desc: 'Industry standard verification' },
+                        { value: 'quick', label: t('quickScan', language), desc: t('quickScanDescription', language) },
+                        { value: 'deep', label: t('deepScan', language), desc: t('deepScanDescription', language) },
+                        { value: 'h2testw', label: 'H2testw Style', desc: language === 'id' ? 'Verifikasi standar industri' : 'Industry standard verification' },
                       ].map((method) => (
                         <label key={method.value} className="flex items-center gap-3 p-3 rounded-xl hover:bg-[var(--color-surface-hover)] cursor-pointer transition-colors">
                           <input
@@ -158,14 +214,14 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
                     <Languages className="w-4 h-4" />
-                    <h3 className="text-sm font-semibold uppercase tracking-wider">Language</h3>
+                    <h3 className="text-sm font-semibold uppercase tracking-wider">{t('language', language)}</h3>
                   </div>
                   
                   <div className="p-4 rounded-2xl bg-[var(--color-bg)] border border-[var(--color-border)]">
                     <div className="flex gap-2">
                       {[
-                        { value: 'en', label: 'English' },
-                        { value: 'id', label: 'Bahasa Indonesia' },
+                        { value: 'en', label: t('english', language) },
+                        { value: 'id', label: t('indonesian', language) },
                       ].map((lang) => (
                         <button
                           key={lang.value}
@@ -187,12 +243,12 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
                     <HardDrive className="w-4 h-4" />
-                    <h3 className="text-sm font-semibold uppercase tracking-wider">Display</h3>
+                    <h3 className="text-sm font-semibold uppercase tracking-wider">{t('appearance', language)}</h3>
                   </div>
                   
                   <div className="p-4 rounded-2xl bg-[var(--color-bg)] border border-[var(--color-border)]">
                     <label className="flex items-center justify-between cursor-pointer">
-                      <span>Show drive labels</span>
+                      <span>{language === 'id' ? 'Tampilkan label drive' : 'Show drive labels'}</span>
                       <input
                         type="checkbox"
                         checked={settings.showDriveLabels}
@@ -210,7 +266,7 @@ export function Settings({ isOpen, onClose }: SettingsProps) {
                   onClick={onClose}
                   className="w-full py-3 rounded-xl bg-[var(--color-primary)] text-white font-semibold hover:bg-[var(--color-primary)]/90 transition-colors"
                 >
-                  Done
+                  {language === 'id' ? 'Selesai' : 'Done'}
                 </button>
               </div>
             </div>

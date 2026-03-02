@@ -4,10 +4,12 @@ import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'rec
 import { Activity, HardDrive, Clock, AlertCircle, CheckCircle2, Square, Pause, Play, File } from 'lucide-react';
 import { DriveInfo, TestProgress as TestProgressType } from '../types';
 import { SectorMap } from './SectorMap';
+import { t } from '../i18n';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface TestProgressProps {
   drive: DriveInfo;
-  method: 'quick' | 'deep';
+  method: 'quick' | 'deep' | 'h2testw';
   progress: TestProgressType | null;
   error: string | null;
   onStop: () => void;
@@ -15,8 +17,22 @@ interface TestProgressProps {
 }
 
 export function TestProgress({ drive, method, progress, error, onStop }: TestProgressProps) {
+  const { language } = useLanguage();
   const [isPaused, setIsPaused] = useState(false);
   const [localHistory, setLocalHistory] = useState<{ time: string; write: number; read: number }[]>([]);
+
+  // DEBUG: Log progress updates
+  useEffect(() => {
+    if (progress) {
+      console.log('TestProgress: Progress update', {
+        phase: progress.phase,
+        progress: progress.progress?.toFixed(1) + '%',
+        writeSpeed: progress.writeSpeed?.toFixed(2) + ' MB/s',
+        readSpeed: progress.readSpeed?.toFixed(2) + ' MB/s',
+        operation: progress.currentOperation
+      });
+    }
+  }, [progress?.progress, progress?.phase, progress?.writeSpeed, progress?.readSpeed]);
 
   // Update local history when progress changes
   useEffect(() => {
@@ -44,15 +60,15 @@ export function TestProgress({ drive, method, progress, error, onStop }: TestPro
   const getPhaseLabel = (phase: string) => {
     switch (phase) {
       case 'preparing':
-        return 'Preparing...';
+        return `${t('preparing', language)}...`;
       case 'writing':
-        return method === 'quick' ? 'Testing Regions' : 'Writing Data';
+        return method === 'quick' ? t('quickScan', language) : t('writing', language);
       case 'verifying':
-        return 'Verifying Data';
+        return t('verifying', language);
       case 'finalizing':
-        return 'Finalizing...';
+        return `${t('finalizing', language)}...`;
       default:
-        return 'Testing...';
+        return t('testInProgress', language);
     }
   };
 
@@ -90,11 +106,11 @@ export function TestProgress({ drive, method, progress, error, onStop }: TestPro
                 ? 'bg-[var(--color-primary)]/20 text-[var(--color-primary)]' 
                 : 'bg-[var(--color-success)]/20 text-[var(--color-success)]'
             }`}>
-              {method === 'quick' ? 'Quick Scan' : 'Deep Scan'}
+              {method === 'quick' ? t('quickScan', language) : t('deepScan', language)}
             </span>
             {error && (
               <span className="px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wider bg-red-500/20 text-red-400">
-                Error
+                {t('fake', language)}
               </span>
             )}
           </div>
@@ -134,12 +150,12 @@ export function TestProgress({ drive, method, progress, error, onStop }: TestPro
 
           <div className="w-full grid grid-cols-2 gap-4 text-center">
             <div className="p-3 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)]">
-              <p className="text-xs text-[var(--color-text-muted)] font-mono mb-1">WRITTEN</p>
-              <p className="font-semibold">{formatBytes(progress?.bytesWritten || 0)}</p>
+              <p className="text-xs text-[var(--color-text-muted)] font-mono mb-1">{t('writeSpeed', language)}</p>
+              <p className="font-semibold">{(progress?.writeSpeed || 0).toFixed(2)} MB/s</p>
             </div>
             <div className="p-3 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)]">
-              <p className="text-xs text-[var(--color-text-muted)] font-mono mb-1">VERIFIED</p>
-              <p className="font-semibold">{formatBytes(progress?.bytesVerified || 0)}</p>
+              <p className="text-xs text-[var(--color-text-muted)] font-mono mb-1">{t('readSpeed', language)}</p>
+              <p className="font-semibold">{(progress?.readSpeed || 0).toFixed(2)} MB/s</p>
             </div>
           </div>
 
@@ -155,7 +171,7 @@ export function TestProgress({ drive, method, progress, error, onStop }: TestPro
             <Clock className="w-6 h-6 text-[var(--color-primary)]" />
           </div>
           <div>
-            <p className="text-sm text-[var(--color-text-muted)] font-mono uppercase">Est. Time Remaining</p>
+            <p className="text-sm text-[var(--color-text-muted)] font-mono uppercase">{t('timeRemaining', language)}</p>
             <p className="text-2xl font-bold font-mono">{formatTime(progress?.timeRemaining || 0)}</p>
           </div>
         </div>
@@ -174,7 +190,7 @@ export function TestProgress({ drive, method, progress, error, onStop }: TestPro
             className="flex items-center justify-center gap-2 py-3 rounded-xl font-semibold bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors"
           >
             <Square className="w-4 h-4" fill="currentColor" />
-            Stop
+            {t('stopTest', language)}
           </button>
         </div>
       </div>
@@ -185,16 +201,16 @@ export function TestProgress({ drive, method, progress, error, onStop }: TestPro
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <Activity className="w-5 h-5 text-[var(--color-primary)]" />
-              Performance Monitor
+              {t('testInProgress', language)}
             </h3>
             <div className="flex gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-[var(--color-primary)] glow-primary" />
-                <span className="text-sm font-mono">Write: {(progress?.writeSpeed || 0).toFixed(1)} MB/s</span>
+                <span className="text-sm font-mono">{t('writeSpeed', language)}: {(progress?.writeSpeed || 0).toFixed(1)} MB/s</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-[var(--color-success)] glow-success" />
-                <span className="text-sm font-mono">Read: {(progress?.readSpeed || 0).toFixed(1)} MB/s</span>
+                <span className="text-sm font-mono">{t('readSpeed', language)}: {(progress?.readSpeed || 0).toFixed(1)} MB/s</span>
               </div>
             </div>
           </div>
@@ -234,10 +250,10 @@ export function TestProgress({ drive, method, progress, error, onStop }: TestPro
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <File className="w-4 h-4 text-[var(--color-primary)]" />
-                <span className="text-sm font-mono">H2testw File Progress</span>
+                <span className="text-sm font-mono">{t('testFileSize', language)}</span>
               </div>
               <span className="text-sm font-mono text-[var(--color-text-muted)]">
-                {progress.currentFile || 0} / {progress.totalFiles} files
+                {progress.currentFile || 0} / {progress.totalFiles}
               </span>
             </div>
             <div className="w-full h-2 bg-[var(--color-surface-hover)] rounded-full overflow-hidden">
@@ -257,7 +273,7 @@ export function TestProgress({ drive, method, progress, error, onStop }: TestPro
               <HardDrive className="w-6 h-6 text-[var(--color-text-muted)]" />
             </div>
             <div>
-              <p className="text-sm text-[var(--color-text-muted)] font-mono uppercase">Target Drive</p>
+              <p className="text-sm text-[var(--color-text-muted)] font-mono uppercase">{t('targetDrive', language)}</p>
               <p className="font-semibold truncate max-w-[150px]">{drive.name}</p>
               <p className="text-xs text-[var(--color-text-muted)] font-mono">{drive.path}</p>
             </div>
@@ -276,7 +292,7 @@ export function TestProgress({ drive, method, progress, error, onStop }: TestPro
               )}
             </div>
             <div>
-              <p className="text-sm text-[var(--color-text-muted)] font-mono uppercase">Errors</p>
+              <p className="text-sm text-[var(--color-text-muted)] font-mono uppercase">{t('errors', language)}</p>
               <p className={`text-2xl font-bold font-mono ${
                 (progress?.errors || 0) > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'
               }`}>

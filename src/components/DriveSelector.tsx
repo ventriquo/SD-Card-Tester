@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { HardDrive, Usb, CheckCircle2, AlertTriangle, ChevronDown, Play, RefreshCw, Bug, Shield, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { HardDrive, Usb, CheckCircle2, AlertTriangle, ChevronDown, Play, RefreshCw, Bug, Shield, ShieldAlert, ShieldCheck, Trash2, X } from 'lucide-react';
 import { DriveInfo } from '../types';
 import type { CIDInfo } from '../../electron/services/CIDReader';
+import { useLanguage } from '../i18n/LanguageContext';
+import { t, tFormat } from '../i18n';
 
 interface DriveSelectorProps {
-  onStartTest: (drive: DriveInfo, method: 'quick' | 'deep') => void;
+  onStartTest: (drive: DriveInfo, method: 'quick' | 'deep' | 'h2testw') => void;
   debugMode?: boolean;
   dummyDrive?: DriveInfo;
 }
 
 export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelectorProps) {
+  const { language } = useLanguage();
   const [drives, setDrives] = useState<DriveInfo[]>([]);
   const [selectedDrive, setSelectedDrive] = useState<DriveInfo | null>(null);
-  const [testMethod, setTestMethod] = useState<'quick' | 'deep'>('quick');
+  const [testMethod, setTestMethod] = useState<'quick' | 'deep' | 'h2testw'>('quick');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +25,18 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
   const [cidInfo, setCidInfo] = useState<CIDInfo | null>(null);
   const [cidWarning, setCidWarning] = useState<string | null>(null);
   const [isLoadingCID, setIsLoadingCID] = useState(false);
+  
+  // Safety confirmation dialog state
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const expectedConfirmText = language === 'id' ? 'HAPUS' : 'DELETE';
+  
+  // Update confirmation text requirement when language changes
+  useEffect(() => {
+    if (showConfirmDialog) {
+      setConfirmText('');
+    }
+  }, [language]);
 
   useEffect(() => {
     // Load drives on mount
@@ -41,9 +56,17 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
       }
     });
 
+    // Listen for settings changes to reload drives
+    const handleStorageChange = () => {
+      console.log('DriveSelector: Settings changed, reloading drives...');
+      loadDrives();
+    };
+    window.addEventListener('storage', handleStorageChange);
+
     return () => {
       window.electronAPI?.stopDriveWatch();
       window.electronAPI?.removeAllListeners('drives-updated');
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 
@@ -51,7 +74,12 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
     try {
       setIsLoading(true);
       setError(null);
-      const driveList = await window.electronAPI?.getDrives();
+      
+      // Read showAllDrives setting from localStorage
+      const settings = localStorage.getItem('sd-card-tester-settings');
+      const showAllDrives = settings ? JSON.parse(settings).showAllDrives : false;
+      
+      const driveList = await window.electronAPI?.getDrives(showAllDrives);
       if (driveList) {
         setDrives(driveList);
       }
@@ -88,6 +116,25 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
     setIsDropdownOpen(false);
     fetchCID(drive);
   };
+  
+  const handleStartTestClick = () => {
+    if (!selectedDrive) return;
+    setShowConfirmDialog(true);
+    setConfirmText('');
+  };
+  
+  const handleConfirmStart = () => {
+    if (confirmText === expectedConfirmText && selectedDrive) {
+      setShowConfirmDialog(false);
+      setConfirmText('');
+      onStartTest(selectedDrive, testMethod);
+    }
+  };
+  
+  const handleCancelConfirm = () => {
+    setShowConfirmDialog(false);
+    setConfirmText('');
+  };
 
   const getDriveIcon = (type: DriveInfo['type']) => {
     switch (type) {
@@ -104,7 +151,7 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
   const getDriveTypeLabel = (type: DriveInfo['type']) => {
     switch (type) {
       case 'microsd':
-        return 'MicroSD Card';
+        return 'MicroSD / SD Card';
       case 'sd':
         return 'SD Card';
       case 'usb':
@@ -130,18 +177,20 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-32 bg-[var(--color-primary)]/5 blur-[100px] pointer-events-none" />
 
         <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold tracking-tight mb-3">Select Target Drive</h2>
+          <h2 className="text-3xl font-bold tracking-tight mb-3">{t('selectTargetDrive', language)}</h2>
           <p className="text-[var(--color-text-muted)] max-w-md mx-auto">
-            Choose the storage device you want to verify. We will perform a {testMethod === 'quick' ? 'quick spot check' : 'full write and read cycle'} to detect fake capacity or defective sectors.
+            {language === 'id' 
+              ? `Pilih perangkat penyimpanan yang ingin Anda verifikasi. Kami akan melakukan ${testMethod === 'quick' ? 'pindai cepat' : 'pindai mendalam'} untuk mendeteksi kapasitas palsu atau sektor yang rusak.`
+              : `Choose the storage device you want to verify. We will perform a ${testMethod === 'quick' ? 'quick spot check' : 'full write and read cycle'} to detect fake capacity or defective sectors.`}
           </p>
         </div>
 
         {/* Test Method Selection */}
         <div className="mb-8">
           <label className="block text-sm font-medium text-[var(--color-text-muted)] mb-3 uppercase tracking-wider">
-            Test Method
+            {t('testMethod', language)}
           </label>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <button
               onClick={() => setTestMethod('quick')}
               className={`p-4 rounded-2xl border transition-all duration-300 text-left ${
@@ -156,10 +205,10 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
                 }`}>
                   {testMethod === 'quick' && <div className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />}
                 </div>
-                <span className="font-semibold">Quick Scan</span>
+                <span className="font-semibold">{t('quickScan', language)}</span>
               </div>
               <p className="text-xs text-[var(--color-text-muted)]">
-                Fast spot check (~2-5 min). Good for quick verification.
+                {t('quickScanDescription', language)}
               </p>
             </button>
             <button
@@ -176,10 +225,30 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
                 }`}>
                   {testMethod === 'deep' && <div className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />}
                 </div>
-                <span className="font-semibold">Deep Scan</span>
+                <span className="font-semibold">{t('deepScan', language)}</span>
               </div>
               <p className="text-xs text-[var(--color-text-muted)]">
-                Full write/read test (10-60 min). Thorough verification.
+                {t('deepScanDescription', language)}
+              </p>
+            </button>
+            <button
+              onClick={() => setTestMethod('h2testw')}
+              className={`p-4 rounded-2xl border transition-all duration-300 text-left ${
+                testMethod === 'h2testw'
+                  ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 glow-primary'
+                  : 'border-[var(--color-border)] bg-[var(--color-surface-hover)] hover:border-[var(--color-text-muted)]'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                  testMethod === 'h2testw' ? 'border-[var(--color-primary)]' : 'border-[var(--color-text-muted)]'
+                }`}>
+                  {testMethod === 'h2testw' && <div className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />}
+                </div>
+                <span className="font-semibold">H2testw</span>
+              </div>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                {language === 'id' ? 'Standar industri, verifikasi byte-per-byte' : 'Industry standard, byte-by-byte verification'}
               </p>
             </button>
           </div>
@@ -189,7 +258,7 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
         <div className="relative mb-8">
           <div className="flex items-center justify-between mb-2">
             <label className="text-sm font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-              Target Drive
+              {t('targetDrive', language)}
             </label>
             <button
               onClick={loadDrives}
@@ -197,7 +266,7 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
               className="text-xs text-[var(--color-primary)] hover:text-[#00cce6] flex items-center gap-1 transition-colors"
             >
               <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
+              {t('refresh', language)}
             </button>
           </div>
           
@@ -224,7 +293,7 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
               </div>
             ) : (
               <span className="text-lg text-[var(--color-text-muted)] pl-2">
-                {isLoading ? 'Scanning for drives...' : (drives.length === 0 && !dummyDrive) ? 'No drives detected' : 'Select a drive to test...'}
+                {isLoading ? t('scanningDrives', language) : (drives.length === 0 && !dummyDrive) ? t('noDrivesDetected', language) : t('selectDriveToTest', language)}
               </span>
             )}
             <ChevronDown
@@ -294,7 +363,7 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
             {isLoadingCID ? (
               <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
                 <div className="animate-spin w-4 h-4 border-2 border-[var(--color-primary)] border-t-transparent rounded-full" />
-                Reading manufacturer info...
+                {language === 'id' ? 'Membaca info produsen...' : 'Reading manufacturer info...'}
               </div>
             ) : cidInfo ? (
               <div className={`p-4 rounded-2xl border ${
@@ -311,7 +380,7 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className={`font-semibold ${cidInfo.isGenuine ? 'text-green-400' : 'text-amber-400'}`}>
-                        {cidInfo.isGenuine ? 'Verified' : 'Unknown'} Manufacturer
+                        {cidInfo.isGenuine ? t('verifiedManufacturer', language) : t('unknownManufacturer', language)}
                       </span>
                       {cidInfo.manufacturer && (
                         <span className="text-[var(--color-text)]">
@@ -323,17 +392,17 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
                         cidInfo.confidence === 'medium' ? 'bg-blue-500/20 text-blue-400' :
                         'bg-amber-500/20 text-amber-400'
                       }`}>
-                        {cidInfo.confidence} confidence
+                        {cidInfo.confidence === 'high' ? t('high', language) : cidInfo.confidence === 'medium' ? t('medium', language) : t('low', language)} {t('confidence', language)}
                       </span>
                     </div>
                     {cidInfo.pnm && cidInfo.pnm !== 'Unknown' && (
                       <p className="text-sm text-[var(--color-text-muted)] mt-1">
-                        Model: {cidInfo.pnm}
+                        {language === 'id' ? 'Model' : 'Model'}: {cidInfo.pnm}
                       </p>
                     )}
                     {cidInfo.mdt && cidInfo.mdt !== '????-??' && (
                       <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                        Manufactured: {cidInfo.mdt}
+                        {t('manufactured', language)}: {cidInfo.mdt}
                       </p>
                     )}
                   </div>
@@ -344,7 +413,7 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
                 <div className="flex items-start gap-3">
                   <Shield className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-amber-400 font-medium">Limited Verification</p>
+                    <p className="text-amber-400 font-medium">{t('limitedVerification', language)}</p>
                     <p className="text-sm text-[var(--color-text-muted)] mt-1">{cidWarning}</p>
                   </div>
                 </div>
@@ -368,9 +437,9 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
             <div className="flex gap-4">
               <AlertTriangle className="w-6 h-6 text-yellow-500 shrink-0" />
               <div>
-                <h4 className="font-semibold text-yellow-500 mb-1">Warning: Data Loss</h4>
+                <h4 className="font-semibold text-yellow-500 mb-1">{t('dataLossWarning', language)}</h4>
                 <p className="text-sm text-yellow-500/80">
-                  This test will write test patterns to all available free space. While the Quick Scan preserves your data, it's highly recommended to backup all important data before proceeding.
+                  {t('testWillErase', language)}. {language === 'id' ? 'Sangat disarankan untuk mencadangkan semua data penting sebelum melanjutkan.' : 'It is highly recommended to backup all important data before proceeding.'}
                 </p>
               </div>
             </div>
@@ -379,7 +448,7 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
 
         <button
           disabled={!selectedDrive || isLoading}
-          onClick={() => selectedDrive && onStartTest(selectedDrive, testMethod)}
+          onClick={handleStartTestClick}
           className={`w-full flex items-center justify-center gap-3 py-5 rounded-2xl font-bold text-lg transition-all duration-300 ${
             selectedDrive
               ? 'bg-[var(--color-primary)] text-black hover:bg-[#00cce6] glow-primary cursor-pointer'
@@ -387,9 +456,113 @@ export function DriveSelector({ onStartTest, debugMode, dummyDrive }: DriveSelec
           }`}
         >
           <Play className="w-6 h-6" fill="currentColor" />
-          START {testMethod === 'quick' ? 'QUICK SCAN' : 'DEEP SCAN'}
+          {t('startTest', language).toUpperCase()}
         </button>
       </div>
+
+      {/* Safety Confirmation Dialog */}
+      <AnimatePresence>
+        {showConfirmDialog && selectedDrive && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={handleCancelConfirm}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-md p-8 rounded-3xl bg-[var(--color-surface)] border border-red-500/30 shadow-2xl relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Warning Icon */}
+              <div className="flex justify-center mb-6">
+                <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center">
+                  <Trash2 className="w-10 h-10 text-red-500" />
+                </div>
+              </div>
+
+              {/* Title */}
+              <h3 className="text-2xl font-bold text-center mb-2 text-red-400">
+                {t('safetyWarning', language)}
+              </h3>
+
+              {/* Warning Message */}
+              <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 mb-6">
+                <p className="text-center text-red-300 font-semibold mb-2">
+                  {t('dataWillBeLost', language)}
+                </p>
+                <p className="text-center text-[var(--color-text-muted)] text-sm">
+                  {t('confirmErase', language)} <span className="text-white font-semibold">{selectedDrive.name}</span>
+                </p>
+              </div>
+
+              {/* Checklist */}
+              <div className="space-y-3 mb-6">
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-5 h-5 rounded border border-[var(--color-border)] flex items-center justify-center">
+                    <span className="text-[var(--color-primary)]">✓</span>
+                  </div>
+                  <span className="text-[var(--color-text-muted)]">{t('backupReminder', language)}</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-5 h-5 rounded border border-[var(--color-border)] flex items-center justify-center">
+                    <span className="text-[var(--color-primary)]">✓</span>
+                  </div>
+                  <span className="text-[var(--color-text-muted)]">{t('thisIsPermanent', language)}</span>
+                </div>
+              </div>
+
+              {/* Type Confirmation */}
+              <div className="mb-6">
+                <label className="block text-sm text-[var(--color-text-muted)] mb-2">
+                  {t('typeToConfirm', language)}
+                  <span className="text-red-400 font-semibold ml-1">({language === 'id' ? 'HAPUS' : 'DELETE'})</span>
+                </label>
+                <input
+                  type="text"
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
+                  placeholder={language === 'id' ? t('typeToConfirmId', language) : t('typeToConfirm', language)}
+                  className="w-full p-4 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)] text-white font-mono text-center tracking-widest uppercase focus:border-red-500 focus:outline-none transition-colors"
+                  autoFocus
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={handleCancelConfirm}
+                  className="py-4 rounded-xl bg-[var(--color-surface-hover)] text-[var(--color-text)] font-semibold hover:bg-[var(--color-border)] transition-colors"
+                >
+                  {t('cancel', language)}
+                </button>
+                <button
+                  onClick={handleConfirmStart}
+                  disabled={confirmText !== expectedConfirmText}
+                  className={`py-4 rounded-xl font-semibold transition-all duration-300 ${
+                    confirmText === expectedConfirmText
+                      ? 'bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/25'
+                      : 'bg-red-500/30 text-red-300 cursor-not-allowed'
+                  }`}
+                >
+                  {t('proceed', language)}
+                </button>
+              </div>
+
+              {/* Close Button */}
+              <button
+                onClick={handleCancelConfirm}
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-[var(--color-surface-hover)] transition-colors"
+              >
+                <X className="w-5 h-5 text-[var(--color-text-muted)]" />
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="mt-8 flex gap-8 text-sm text-[var(--color-text-muted)] font-mono">
         <div className="flex items-center gap-2">

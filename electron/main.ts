@@ -93,14 +93,17 @@ function initializeServices() {
 
   // Test engine events
   testEngine.on('progress', (data) => {
+    console.log(`Main: Forwarding test progress - Phase: ${data.phase}, Progress: ${data.progress?.toFixed(1)}%`);
     mainWindow?.webContents.send('test-progress', data);
   });
 
   testEngine.on('completed', (result) => {
+    console.log('Main: Test completed, forwarding result');
     mainWindow?.webContents.send('test-completed', result);
   });
 
   testEngine.on('error', (error) => {
+    console.error('Main: Test error:', error);
     mainWindow?.webContents.send('test-error', error);
   });
 }
@@ -108,8 +111,13 @@ function initializeServices() {
 // IPC Handlers
 function setupIpcHandlers() {
   // Get available drives
-  ipcMain.handle('get-drives', async () => {
-    return driveScanner?.getDrives() || [];
+  ipcMain.handle('get-drives', async (_, showAllDrives: boolean = false) => {
+    return driveScanner?.getDrives(showAllDrives) || [];
+  });
+
+  // Get raw drive info for debugging
+  ipcMain.handle('get-raw-drives', async () => {
+    return driveScanner?.getRawWindowsDrives() || [];
   });
 
   // Start watching for drive changes

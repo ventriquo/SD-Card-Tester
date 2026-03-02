@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { HistoryEntry, HistoryStats } from '../../electron/services/HistoryStore';
+import { t } from '../i18n';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface HistoryProps {
   isOpen: boolean;
@@ -8,6 +10,7 @@ interface HistoryProps {
 }
 
 export function History({ isOpen, onClose }: HistoryProps) {
+  const { language } = useLanguage();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [stats, setStats] = useState<HistoryStats | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,7 +64,7 @@ export function History({ isOpen, onClose }: HistoryProps) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this entry?')) return;
+    if (!confirm(t('deleteEntry', language))) return;
     try {
       await window.electronAPI?.deleteHistoryEntry?.(id);
       loadHistory();
@@ -71,7 +74,7 @@ export function History({ isOpen, onClose }: HistoryProps) {
   };
 
   const handleClearAll = async () => {
-    if (!confirm('Clear all history? This cannot be undone.')) return;
+    if (!confirm(`${t('clearAll', language)}?`)) return;
     try {
       await window.electronAPI?.clearHistory?.();
       loadHistory();
@@ -137,9 +140,9 @@ export function History({ isOpen, onClose }: HistoryProps) {
           {/* Header */}
           <div className="p-6 border-b border-[var(--color-border)] flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-[var(--color-text)]">Test History</h2>
+              <h2 className="text-2xl font-bold text-[var(--color-text)]">{t('testHistory', language)}</h2>
               <p className="text-[var(--color-text-muted)] text-sm mt-1">
-                View and manage your previous SD card tests
+                {t('historyDescription', language)}
               </p>
             </div>
             <button
@@ -157,19 +160,19 @@ export function History({ isOpen, onClose }: HistoryProps) {
             <div className="p-6 border-b border-[var(--color-border)] bg-[var(--color-surface-hover)]/50">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-[var(--color-surface)] rounded-xl p-4 border border-[var(--color-border)]">
-                  <p className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">Total Tests</p>
+                  <p className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">{t('totalTests', language)}</p>
                   <p className="text-2xl font-bold text-[var(--color-text)] mt-1">{stats.totalTests}</p>
                 </div>
                 <div className="bg-[var(--color-surface)] rounded-xl p-4 border border-[var(--color-border)]">
-                  <p className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">Passed</p>
+                  <p className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">{t('passed', language)}</p>
                   <p className="text-2xl font-bold text-green-500 mt-1">{stats.passedTests}</p>
                 </div>
                 <div className="bg-[var(--color-surface)] rounded-xl p-4 border border-[var(--color-border)]">
-                  <p className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">Failed</p>
+                  <p className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">{t('failed', language)}</p>
                   <p className="text-2xl font-bold text-red-500 mt-1">{stats.failedTests}</p>
                 </div>
                 <div className="bg-[var(--color-surface)] rounded-xl p-4 border border-[var(--color-border)]">
-                  <p className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">Fake Cards</p>
+                  <p className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">{t('fakeCardsDetected', language)}</p>
                   <p className="text-2xl font-bold text-amber-500 mt-1">{stats.fakeCardsDetected}</p>
                 </div>
               </div>
@@ -177,11 +180,11 @@ export function History({ isOpen, onClose }: HistoryProps) {
               {stats.averageWriteSpeed > 0 && (
                 <div className="mt-4 grid grid-cols-2 gap-4">
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="text-[var(--color-text-muted)]">Avg Write Speed:</span>
+                    <span className="text-[var(--color-text-muted)]">{t('averageWriteSpeed', language)}:</span>
                     <span className="font-semibold text-[var(--color-text)]">{stats.averageWriteSpeed} MB/s</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="text-[var(--color-text-muted)]">Avg Read Speed:</span>
+                    <span className="text-[var(--color-text-muted)]">{t('averageReadSpeed', language)}:</span>
                     <span className="font-semibold text-[var(--color-text)]">{stats.averageReadSpeed} MB/s</span>
                   </div>
                 </div>
@@ -197,7 +200,7 @@ export function History({ isOpen, onClose }: HistoryProps) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="Search by drive, manufacturer, or notes..."
+                placeholder={t('searchHistory', language)}
                 className="w-full px-4 py-2 pl-10 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary)]"
               />
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -208,26 +211,26 @@ export function History({ isOpen, onClose }: HistoryProps) {
               onClick={handleSearch}
               className="px-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] transition-colors"
             >
-              Search
+              {t('searchHistory', language).split(' ')[0]}
             </button>
             <button
               onClick={() => handleExport('json')}
               className="px-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] transition-colors"
             >
-              Export JSON
+              {t('exportJson', language)}
             </button>
             <button
               onClick={() => handleExport('csv')}
               className="px-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] transition-colors"
             >
-              Export CSV
+              {t('exportCsv', language)}
             </button>
             {entries.length > 0 && (
               <button
                 onClick={handleClearAll}
                 className="px-4 py-2 bg-red-500/10 border border-red-500/30 rounded-xl text-red-500 hover:bg-red-500/20 transition-colors"
               >
-                Clear All
+                {t('clearAll', language)}
               </button>
             )}
           </div>
@@ -237,15 +240,15 @@ export function History({ isOpen, onClose }: HistoryProps) {
             {loading ? (
               <div className="p-8 text-center text-[var(--color-text-muted)]">
                 <div className="animate-spin w-8 h-8 border-2 border-[var(--color-primary)] border-t-transparent rounded-full mx-auto mb-4" />
-                Loading history...
+                {t('historyDescription', language)}...
               </div>
             ) : entries.length === 0 ? (
               <div className="p-8 text-center text-[var(--color-text-muted)]">
                 <svg className="w-16 h-16 mx-auto mb-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-lg font-medium">No test history yet</p>
-                <p className="text-sm mt-1">Run your first test to see results here</p>
+                <p className="text-lg font-medium">{t('noHistoryYet', language)}</p>
+                <p className="text-sm mt-1">{t('runFirstTest', language)}</p>
               </div>
             ) : (
               <div className="divide-y divide-[var(--color-border)]">
@@ -318,7 +321,7 @@ export function History({ isOpen, onClose }: HistoryProps) {
                           handleDelete(entry.id);
                         }}
                         className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                        title="Delete entry"
+                        title={t('deleteEntry', language)}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -349,7 +352,7 @@ export function History({ isOpen, onClose }: HistoryProps) {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-[var(--color-text)]">Test Details</h3>
+                <h3 className="text-xl font-bold text-[var(--color-text)]">{t('testHistory', language)}</h3>
                 <button
                   onClick={() => setSelectedEntry(null)}
                   className="p-2 hover:bg-[var(--color-surface-hover)] rounded-lg"
@@ -363,42 +366,42 @@ export function History({ isOpen, onClose }: HistoryProps) {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-[var(--color-surface-hover)] rounded-lg p-3">
-                    <p className="text-xs text-[var(--color-text-muted)] uppercase">Result</p>
+                    <p className="text-xs text-[var(--color-text-muted)] uppercase">{t('testComplete', language)}</p>
                     <p className={`font-semibold ${selectedEntry.result === 'pass' ? 'text-green-500' : selectedEntry.result === 'fail' ? 'text-red-500' : 'text-amber-500'}`}>
                       {selectedEntry.result.toUpperCase()}
                     </p>
                   </div>
                   <div className="bg-[var(--color-surface-hover)] rounded-lg p-3">
-                    <p className="text-xs text-[var(--color-text-muted)] uppercase">Test Type</p>
+                    <p className="text-xs text-[var(--color-text-muted)] uppercase">{t('testMethod', language)}</p>
                     <p className="font-semibold text-[var(--color-text)]">{selectedEntry.testType}</p>
                   </div>
                 </div>
 
                 <div className="bg-[var(--color-surface-hover)] rounded-lg p-3">
-                  <p className="text-xs text-[var(--color-text-muted)] uppercase">Date</p>
+                  <p className="text-xs text-[var(--color-text-muted)] uppercase">{t('testDuration', language)}</p>
                   <p className="font-semibold text-[var(--color-text)]">{formatDate(selectedEntry.timestamp)}</p>
                 </div>
 
                 <div className="bg-[var(--color-surface-hover)] rounded-lg p-3">
-                  <p className="text-xs text-[var(--color-text-muted)] uppercase">Drive</p>
+                  <p className="text-xs text-[var(--color-text-muted)] uppercase">{t('targetDrive', language)}</p>
                   <p className="font-semibold text-[var(--color-text)]">{selectedEntry.driveLabel || selectedEntry.driveName}</p>
                   <p className="text-sm text-[var(--color-text-muted)]">{formatBytes(selectedEntry.capacity)}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-[var(--color-surface-hover)] rounded-lg p-3">
-                    <p className="text-xs text-[var(--color-text-muted)] uppercase">Write Speed</p>
+                    <p className="text-xs text-[var(--color-text-muted)] uppercase">{t('writeSpeed', language)}</p>
                     <p className="font-semibold text-[var(--color-primary)]">{selectedEntry.writeSpeed.toFixed(1)} MB/s</p>
                   </div>
                   <div className="bg-[var(--color-surface-hover)] rounded-lg p-3">
-                    <p className="text-xs text-[var(--color-text-muted)] uppercase">Read Speed</p>
+                    <p className="text-xs text-[var(--color-text-muted)] uppercase">{t('readSpeed', language)}</p>
                     <p className="font-semibold text-green-500">{selectedEntry.readSpeed.toFixed(1)} MB/s</p>
                   </div>
                 </div>
 
                 {selectedEntry.manufacturer && (
                   <div className="bg-[var(--color-surface-hover)] rounded-lg p-3">
-                    <p className="text-xs text-[var(--color-text-muted)] uppercase">Manufacturer</p>
+                    <p className="text-xs text-[var(--color-text-muted)] uppercase">{t('manufacturer', language)}</p>
                     <p className="font-semibold text-[var(--color-text)]">{selectedEntry.manufacturer}</p>
                     {selectedEntry.model && (
                       <p className="text-sm text-[var(--color-text-muted)]">{selectedEntry.model}</p>

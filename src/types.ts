@@ -42,13 +42,14 @@ export interface TestResult {
   averageWriteSpeed: number;
   averageReadSpeed: number;
   duration: number; // seconds
-  testMethod: 'quick' | 'deep';
+  testMethod: 'quick' | 'deep' | 'h2testw';
   timestamp: number;
   drive: DriveInfo;
   details?: {
-    badSectors: number[];
+    badSectors: Array<{ position: number; expected?: number; actual?: number }>;
     firstFailureAt?: number; // GB position where first error occurred
     pattern?: string;
+    filesCreated?: number; // For H2testw
   };
 }
 
@@ -56,7 +57,7 @@ export interface TestResult {
 export interface TestConfig {
   driveId: string;
   drive: DriveInfo;
-  method: 'quick' | 'deep';
+  method: 'quick' | 'deep' | 'h2testw';
   preserveData: boolean; // If true, test only empty space; if false, destructive test
   quickScanOptions?: {
     spotCount: number; // Number of spots to check (default: 576 like ValiDrive)
@@ -64,6 +65,9 @@ export interface TestConfig {
   deepScanOptions?: {
     blockSize: number; // MB per block (default: 1024)
     resumeFrom?: number; // GB position to resume from (for interrupted tests)
+  };
+  h2testwOptions?: {
+    fileSize: number; // MB per file (default: 1024 = 1GB)
   };
 }
 

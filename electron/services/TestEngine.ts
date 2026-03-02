@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 import fs from 'fs';
 import path from 'path';
 import type { TestConfig, TestProgress, TestResult, DriveInfo, SectorMap, SectorStatus } from '../../src/types';
+import { H2testwEngine } from './H2testwEngine';
 
 type TestState = 'idle' | 'preparing' | 'writing' | 'verifying' | 'completed' | 'error' | 'paused';
 
@@ -76,7 +77,9 @@ export class TestEngine extends EventEmitter {
       // Initialize sector map based on drive capacity
       this.initializeSectorMap();
 
-      if (config.method === 'quick') {
+      if (config.method === 'h2testw') {
+        await this.runH2testw();
+      } else if (config.method === 'quick') {
         await this.runQuickTest();
       } else {
         await this.runDeepTest();
@@ -113,6 +116,7 @@ export class TestEngine extends EventEmitter {
   }
 
   private async runQuickTest(): Promise<void> {
+    console.log(`TestEngine: Starting Quick Test on ${this.drive?.path}, capacity: ${this.drive?.capacity}GB`);
     this.state = 'writing';
     this.progress.phase = 'writing';
     
@@ -121,14 +125,20 @@ export class TestEngine extends EventEmitter {
     const totalSize = this.drive!.capacity * 1024 * 1024 * 1024; // Convert to bytes
     const step = totalSize / spotCount;
     
+    console.log(`TestEngine: spotCount=${spotCount}, totalSize=${totalSize}, step=${step}`);
+    
     // Check if there's enough free space
     const stats = await fs.promises.statfs(drivePath).catch(() => null);
     if (!stats) {
+      console.error(`TestEngine: Cannot access drive ${drivePath}`);
       throw new Error('Cannot access drive. Please ensure it is properly mounted.');
     }
+    
+    console.log(`TestEngine: Drive stats obtained, free space available`);
 
     this.progress.currentOperation = `Running spot check (${spotCount} regions)...`;
     this.emit('progress', this.progress);
+    console.log('TestEngine: Initial progress emitted');
 
     const testFilePath = path.join(drivePath, '.sdtest_tmp');
     this.testFilePath = testFilePath;
@@ -194,13 +204,20 @@ export class TestEngine extends EventEmitter {
         await fileHandle.write(originalData, 0, 4096, offset);
         await fileHandle.sync();
 
+        // Calculate speeds with protection against division by zero
+        const writeTimeSec = Math.max(writeTime, 1) / 1000; // Minimum 1ms
+        const readTimeSec = Math.max(readTime, 1) / 1000; // Minimum 1ms
+        this.progress.writeSpeed = 4096 / writeTimeSec / (1024 * 1024); // MB/s
+        this.progress.readSpeed = 4096 / readTimeSec / (1024 * 1024); // MB/s
+        
         // Update progress
         this.progress.progress = ((i + 1) / spotCount) * 100;
-        this.progress.writeSpeed = 4096 / (writeTime / 1000) / (1024 * 1024); // MB/s
-        this.progress.readSpeed = 4096 / (readTime / 1000) / (1024 * 1024); // MB/s
         this.progress.bytesVerified = offset;
         this.progress.timeElapsed = (Date.now() - this.startTime) / 1000;
         this.progress.timeRemaining = this.estimateRemaining(spotCount, i + 1);
+        
+        // DEBUG: Log progress
+        console.log(`TestEngine: Spot ${i + 1}/${spotCount}, Write: ${this.progress.writeSpeed.toFixed(2)} MB/s, Read: ${this.progress.readSpeed.toFixed(2)} MB/s, Progress: ${this.progress.progress.toFixed(1)}%`);
         
         // Add to history every 10 spots
         if (i % 10 === 0) {
@@ -366,6 +383,42 @@ export class TestEngine extends EventEmitter {
     } finally {
       await this.cleanup();
     }
+  }
+
+  private async runH2testw(): Promise<void> {
+    // Create H2testw engine instance
+    const h2testw = new H2testwEngine();
+
+    // Forward events from H2testw engine
+    h2testw.on('progress', (progress) => {
+      this.progress = { ...this.progress, ...progress };
+      this.emit('progress', this.progress);
+    });
+
+    h2testw.on('completed', (result) => {
+      this.emit('completed', result);
+    });
+
+    h2testw.on('error', (error) => {
+      this.emit('error', error);
+    });
+
+    // Handle abort signal
+    if (this.abortController) {
+      const abortHandler = () => {
+        h2testw.stopTest();
+      };
+      this.abortController.signal.addEventListener('abort', abortHandler);
+    }
+
+    // Start H2testw
+    await h2testw.startTest({
+      drive: this.drive!,
+      fileSize: this.config?.h2testwOptions?.fileSize,
+    });
+
+    // Cleanup H2testw files
+    await h2testw.cleanup();
   }
 
   private async writePatternFile(filePath: string, pattern: number[], size: number): Promise<void> {

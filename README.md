@@ -50,13 +50,16 @@ Counterfeit SD cards are prevalent in many regions, especially Indonesia and oth
 - ⚠️ **Visual indicators** - Color-coded results (green = genuine, red = fake, yellow = suspicious)
 - 📄 **Export test reports** - Save results as JSON or TXT
 - 🖥️ **Cross-platform** - Windows (primary) and macOS support
+- 🆔 **CID Register reading** - Verify manufacturer authenticity with 25+ brand database
+- 🌐 **Bilingual support** - English and Indonesian (Bahasa Indonesia) languages
+- 📚 **Educational tooltips** - Learn about fake SD cards, speed classes, and testing methods
+- 📜 **Test history** - Track and export all your previous tests
 
 ### Upcoming Features
 
-- 🆔 **CID Register reading** - Verify manufacturer authenticity (requires admin privileges)
-- 🌐 **Indonesian language support**
 - 🔄 **Auto-updater** via electron-updater
 - 📱 **Speed class verification** (V30, U3, etc. for photography/videography)
+- 🤖 **MediaTester/F3 algorithm integration** for advanced testing methods
 
 ## 🚀 Installation
 

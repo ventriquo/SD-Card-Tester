@@ -6,6 +6,8 @@ import { TestProgress } from './components/TestProgress';
 import { TestResults } from './components/TestResults';
 import { Settings, getSettings } from './components/Settings';
 import { History } from './components/History';
+import { EducationalPanel } from './components/EducationalPanel';
+import { LanguageProvider } from './i18n/LanguageContext';
 import { DriveInfo, TestResult, TestState, TestProgress as TestProgressType, SectorStatus } from './types';
 
 // Dummy drive for debug mode
@@ -24,7 +26,7 @@ const DUMMY_DRIVE: DriveInfo = {
 export default function App() {
   const [testState, setTestState] = useState<TestState>('idle');
   const [selectedDrive, setSelectedDrive] = useState<DriveInfo | null>(null);
-  const [testMethod, setTestMethod] = useState<'quick' | 'deep'>('quick');
+  const [testMethod, setTestMethod] = useState<'quick' | 'deep' | 'h2testw'>('quick');
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [testProgress, setTestProgress] = useState<TestProgressType | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
@@ -130,7 +132,7 @@ export default function App() {
           timestamp: Date.now(),
           drive: selectedDrive,
           details: {
-            badSectors: sectors.map((s, i) => s === 'writeError' || s === 'readError' ? i : -1).filter(i => i !== -1),
+            badSectors: sectors.map((s, i) => s === 'writeError' || s === 'readError' ? { position: i } : null).filter((s): s is { position: number } => s !== null),
             firstFailureAt: errorCount > 0 ? selectedDrive.capacity * 0.8 : undefined,
             pattern: testMethod === 'quick' ? 'spot-check-576' : 'full-verify',
           },
@@ -152,6 +154,7 @@ export default function App() {
     if (debugMode) return;
 
     const handleTestProgress = (data: TestProgressType) => {
+      console.log('App: Received test progress', data.phase, data.progress?.toFixed(1) + '%');
       setTestProgress(data);
     };
 
@@ -178,7 +181,7 @@ export default function App() {
     };
   }, [debugMode]);
 
-  const handleStartTest = useCallback(async (drive: DriveInfo, method: 'quick' | 'deep') => {
+  const handleStartTest = useCallback(async (drive: DriveInfo, method: 'quick' | 'deep' | 'h2testw') => {
     setSelectedDrive(drive);
     setTestMethod(method);
     setTestError(null);
@@ -219,7 +222,7 @@ export default function App() {
     setSimulationProgress(null);
   }, [debugMode]);
 
-  const saveTestResultToHistory = useCallback(async (result: TestResult, drive: DriveInfo, method: 'quick' | 'deep') => {
+  const saveTestResultToHistory = useCallback(async (result: TestResult, drive: DriveInfo, method: 'quick' | 'deep' | 'h2testw') => {
     try {
       await window.electronAPI?.saveTestResult?.({
         results: result,
@@ -272,6 +275,7 @@ export default function App() {
   const currentProgress = debugMode ? simulationProgress : testProgress;
 
   return (
+    <LanguageProvider>
     <div className="min-h-screen bg-grid flex flex-col">
       <Header
         onSettingsClick={() => setIsSettingsOpen(true)}
@@ -322,8 +326,12 @@ export default function App() {
       {/* History Modal */}
       <History isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
 
+      {/* Educational Panel - Floating Help Button */}
+      <EducationalPanel />
+
       {/* Ambient background glow */}
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[var(--color-primary)]/5 rounded-full blur-[150px] pointer-events-none -z-10" />
     </div>
+    </LanguageProvider>
   );
 }

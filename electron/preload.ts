@@ -7,7 +7,8 @@ import type { CIDInfo } from './services/CIDReader';
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
   // Drive operations
-  getDrives: (): Promise<DriveInfo[]> => ipcRenderer.invoke('get-drives'),
+  getDrives: (showAllDrives?: boolean): Promise<DriveInfo[]> => ipcRenderer.invoke('get-drives', showAllDrives),
+  getRawDrives: (): Promise<any[]> => ipcRenderer.invoke('get-raw-drives'),
   startDriveWatch: (): Promise<void> => ipcRenderer.invoke('start-drive-watch'),
   stopDriveWatch: (): Promise<void> => ipcRenderer.invoke('stop-drive-watch'),
 
@@ -69,7 +70,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 declare global {
   interface Window {
     electronAPI: {
-      getDrives: () => Promise<DriveInfo[]>;
+      getDrives: (showAllDrives?: boolean) => Promise<DriveInfo[]>;
       startDriveWatch: () => Promise<void>;
       stopDriveWatch: () => Promise<void>;
       startTest: (config: TestConfig) => Promise<{ success: boolean; error?: string }>;
